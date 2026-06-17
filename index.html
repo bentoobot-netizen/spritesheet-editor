@@ -258,7 +258,20 @@ const S = {
   selectedFrameIds: new Set(),
   activeAnimId: null,
   playingAnimId: null,
+  // Resize handles
+  isResizing: false,
+  resizeHandle: null, // 'tl','tc','tr','ml','mr','bl','bc','br'
+  resizeFrame: null,
+  resizeStartX: 0, resizeStartY: 0,
+  resizeOrigRect: null,
+  isDragging: false,
+  dragFrame: null,
+  dragStartX: 0, dragStartY: 0,
+  dragOrigRect: null,
 };
+
+const HANDLE_SIZE = 6;
+const HANDLE_HIT = 8; // hit area in screen pixels
 
 const canvas = document.getElementById('sheetCanvas');
 const ctx = canvas.getContext('2d');
@@ -443,37 +456,177 @@ function updateSelRect(e) {
   selRectEl.style.height = ch + 'px';
 }
 
-// ===== SELECT TOOL =====
-canvas.addEventListener('click', e => {
+// ===== HANDLE DETECTION =====
+function getHandleAtPoint(sx, sy) {
+  if (S.selectedFrameIds.size !== 1) return null;
+  const fid = [...S.selectedFrameIds][0];
+  const f = S.frames.find(fr => fr.id === fid);
+  if (!f) return null;
+
+  const r = wrap.getBoundingClientRect();
+  const z = S.zoom;
+  const hx = f.x * z + S.panX + r.left;
+  const hy = f.y * z + S.panY + r.top;
+  const hw = f.w * z;
+  const hh = f.h * z;
+  const hs = HANDLE_HIT;
+
+  const cx = hx + hw/2, cy = hy + hh/2;
+
+  // Check corners and edges
+  const handles = [
+    { name: 'tl', x: hx,        y: hy },
+    { name: 'tc', x: cx,        y: hy },
+    { name: 'tr', x: hx + hw,   y: hy },
+    { name: 'ml', x: hx,        y: cy },
+    { name: 'mr', x: hx + hw,   y: cy },
+    { name: 'bl', x: hx,        y: hy + hh },
+    { name: 'bc', x: cx,        y: hy + hh },
+    { name: 'br', x: hx + hw,   y: hy + hh },
+  ];
+
+  for (const h of handles) {
+    if (Math.abs(sx - h.x) <= hs && Math.abs(sy - h.y) <= hs) return h.name;
+  }
+  return null;
+}
+
+function getCursorForHandle(handle) {
+ const cursors = { tl:'nw-resize', tc:'n-resize', tr:'ne-resize', ml:'w-resize', mr:'e-resize', bl:'sw-resize', bc:'s-resize', br:'se-resize' };
+ return cursors[handle] || 'default';
+}
+
+// ===== MOUSE MOVE (cursor + resize + drag) =====
+wrap.addEventListener('mousemove', e => {
+  if (S.isPanning || S.spaceDown || S.isDrawing || !S.img) return;
+  const sx = e.clientX, sy = e.clientY;
+
+  // Resize in progress
+  if (S.isResizing && S.resizeFrame) {
+    const [ix, iy] = screenToImg(sx, sy);
+    const o = S.resizeOrigRect;
+    const h = S.resizeHandle;
+    const MIN = 3;
+
+    let nx = o.x, ny = o.y, nw = o.w, nh = o.h;
+
+    // Horizontal
+    if (h.includes('l')) { nx = ix; nw = o.x + o.w - ix; }
+    else if (h.includes('r') || h === 'mr') { nw = ix - o.x; }
+    // Vertical
+    if (h.startsWith('t')) { ny = iy; nh = o.y + o.h - iy; }
+    else if (h.startsWith('b') || h === 'bc') { nh = iy - o.y; }
+
+    // Enforce minimum size
+    if (nw < MIN) { if (h.includes('l')) nx = o.x + o.w - MIN; nw = MIN; }
+    if (nh < MIN) { if (h.startsWith('t')) ny = o.y + o.h - MIN; nh = MIN; }
+
+    S.resizeFrame.x = Math.round(nx);
+    S.resizeFrame.y = Math.round(ny);
+    S.resizeFrame.w = Math.round(nw);
+    S.resizeFrame.h = Math.round(nh);
+
+    renderFrameList();
+    render();
+    return;
+  }
+
+  // Drag in progress
+  if (S.isDragging && S.dragFrame) {
+    const dx = (sx - S.dragStartX) / S.zoom;
+    const dy = (sy - S.dragStartY) / S.zoom;
+    S.dragFrame.x = Math.round(S.dragOrigRect.x + dx);
+    S.dragFrame.y = Math.round(S.dragOrigRect.y + dy);
+    renderFrameList();
+    render();
+    return;
+  }
+
+  // Update cursor based on handle hover
+  const handle = getHandleAtPoint(sx, sy);
+  if (handle) {
+    canvas.style.cursor = getCursorForHandle(handle);
+  } else if (S.tool === 'rect') {
+    canvas.style.cursor = 'crosshair';
+  } else {
+    canvas.style.cursor = 'default';
+  }
+});
+
+// ===== SELECT TOOL (mousedown + click) =====
+let selectMouseDown = false;
+
+wrap.addEventListener('mousedown', e => {
   if (!S.img || S.isPanning || S.spaceDown || S.isDrawing) return;
+  if (e.button !== 0) return;
+
   const [ix, iy] = screenToImg(e.clientX, e.clientY);
+  const sx = e.clientX, sy = e.clientY;
 
-  if (S.tool === 'rect') return; // handled by mouseup
+  // Check handle resize first
+  const handle = getHandleAtPoint(sx, sy);
+  if (handle && S.selectedFrameIds.size === 1) {
+    e.preventDefault();
+    const fid = [...S.selectedFrameIds][0];
+ const f = S.frames.find(fr => fr.id === fid);
+    S.isResizing = true;
+    S.resizeHandle = handle;
+    S.resizeFrame = f;
+    S.resizeStartX = sx;
+    S.resizeStartY = sy;
+    S.resizeOrigRect = { x: f.x, y: f.y, w: f.w, h: f.h };
+    return;
+  }
 
+  // Check if clicking inside a frame (drag)
   if (S.tool === 'select') {
-    // Find clicked frame (reverse order for top-most)
-    let clicked = null;
     for (let i = S.frames.length - 1; i >= 0; i--) {
       const f = S.frames[i];
       if (ix >= f.x && ix <= f.x + f.w && iy >= f.y && iy <= f.y + f.h) {
-        clicked = f; break;
+        if (S.selectedFrameIds.has(f.id)) {
+          // Start drag
+          e.preventDefault();
+          S.isDragging = true;
+          S.dragFrame = f;
+          S.dragStartX = sx;
+          S.dragStartY = sy;
+          S.dragOrigRect = { x: f.x, y: f.y, w: f.w, h: f.h };
+        } else {
+          if (!e.shiftKey) S.selectedFrameIds.clear();
+          S.selectedFrameIds.add(f.id);
+          // Also start drag
+          e.preventDefault();
+          S.isDragging = true;
+          S.dragFrame = f;
+          S.dragStartX = sx;
+          S.dragStartY = sy;
+          S.dragOrigRect = { x: f.x, y: f.y, w: f.w, h: f.h };
+        }
+        selectMouseDown = true;
+        renderFrameList();
+        render();
+        return;
       }
     }
-
-    if (clicked) {
-      if (e.shiftKey) {
-        if (S.selectedFrameIds.has(clicked.id)) S.selectedFrameIds.delete(clicked.id);
-        else S.selectedFrameIds.add(clicked.id);
-      } else {
-        S.selectedFrameIds.clear();
-        S.selectedFrameIds.add(clicked.id);
-      }
-    } else if (!e.shiftKey) {
-      S.selectedFrameIds.clear();
-    }
+    // Clicked empty space
+    if (!e.shiftKey) S.selectedFrameIds.clear();
+    selectMouseDown = true;
     renderFrameList();
     render();
   }
+});
+
+window.addEventListener('mouseup', e => {
+  if (S.isResizing) {
+    S.isResizing = false;
+    S.resizeFrame = null;
+    S.resizeHandle = null;
+  }
+  if (S.isDragging) {
+    S.isDragging = false;
+    S.dragFrame = null;
+  }
+  selectMouseDown = false;
 });
 
 // ===== FRAME LIST =====
@@ -609,6 +762,30 @@ function render() {
       ctx.textBaseline = 'top';
       ctx.fillText('#' + i, x + 3, y + 3);
     }
+
+    // Resize handles on selected frame (single selection only)
+    if (selected && S.selectedFrameIds.size === 1) {
+      drawHandles(x, y, w, h);
+    }
+  });
+}
+
+function drawHandles(x, y, w, h) {
+  const s = HANDLE_SIZE;
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = 'var(--accent)';
+  ctx.lineWidth = 1;
+
+  const handles = [
+    [x, y], [x+w/2, y], [x+w, y],       // tl, tc, tr
+    [x, y+h/2], [x+w, y+h/2],              // ml, mr
+    [x, y+h], [x+w/2, y+h], [x+w, y+h],   // bl, bc, br
+  ];
+  handles.forEach(([hx, hy]) => {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(hx - s/2, hy - s/2, s, s);
+    ctx.strokeStyle = '#e94560';
+    ctx.strokeRect(hx - s/2, hy - s/2, s, s);
   });
 }
 
