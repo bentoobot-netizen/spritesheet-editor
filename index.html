@@ -55,6 +55,7 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
 .frame-item.in-anim{border-left:3px solid var(--anim-color,var(--accent))}
 .frame-item .idx{color:var(--dim);font-size:10px;min-width:20px}
 .frame-item .dims{color:var(--dim);font-size:10px;margin-left:auto}
+.frame-item .pos{color:var(--dim);font-size:10px}
 .frame-item .fi{width:36px;background:var(--accent2);border:1px solid var(--border);color:#ccc;padding:1px 3px;border-radius:3px;font-size:10px;text-align:center;-moz-appearance:textfield}
 .frame-item .fi::-webkit-inner-spin-button,.frame-item .fi::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .frame-item .fi:focus{outline:1px solid var(--accent);border-color:var(--accent)}
@@ -569,7 +570,7 @@ function renderFrameList() {
     div.className = 'frame-item' + (S.selectedFrameIds.has(f.id) ? ' selected' : '');
     const activeAnim = S.animations.find(a => a.id === S.activeAnimId);
     if (activeAnim && activeAnim.frameIds.includes(f.id)) { div.classList.add('in-anim'); div.style.setProperty('--anim-color', activeAnim.color); }
-    div.innerHTML = `<span class="idx">#${i}</span><input class="fi" type="number" value="${f.x}" data-fid="${f.id}" data-prop="x" title="X"><input class="fi" type="number" value="${f.y}" data-fid="${f.id}" data-prop="y" title="Y"><span>×</span><input class="fi" type="number" value="${f.w}" data-fid="${f.id}" data-prop="w" title="W"><input class="fi" type="number" value="${f.h}" data-fid="${f.id}" data-prop="h" title="H"><span class="del" data-del="${f.id}">×</span>`;
+    div.innerHTML = `<span class="idx">#${i}</span><span class="pos">${f.x},${f.y}</span><input class="fi" type="number" value="${f.w}" data-fid="${f.id}" data-prop="w" title="Width"><span>×</span><input class="fi" type="number" value="${f.h}" data-fid="${f.id}" data-prop="h" title="Height"><span class="del" data-del="${f.id}">×</span>`;
     div.addEventListener('click', ev => {
       if (ev.target.closest('[data-del]') || ev.target.tagName === 'INPUT') return;
       if (ev.shiftKey) { S.selectedFrameIds.has(f.id) ? S.selectedFrameIds.delete(f.id) : S.selectedFrameIds.add(f.id); }
@@ -581,7 +582,7 @@ function renderFrameList() {
       inp.addEventListener('click', stop); inp.addEventListener('mousedown', stop);
       inp.addEventListener('change', ev => {
         const val = parseInt(ev.target.value);
-        if (isNaN(val) || val < 0) return;
+        if (isNaN(val) || val < 3) return;
         f[ev.target.dataset.prop] = val;
         render();
       });
