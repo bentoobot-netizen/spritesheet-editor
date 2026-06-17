@@ -29,9 +29,11 @@ header h1{font-size:16px;margin-right:auto;color:var(--accent)}
 
 /* --- SHEET AREA --- */
 .sheet-area{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
-.sheet-canvas-wrap{flex:1;overflow:auto;position:relative;background:repeating-conic-gradient(#222 0% 25%,#1a1a1a 0% 50%) 0 0/20px 20px;display:flex;align-items:flex-start;justify-content:center;padding:20px}
+.sheet-canvas-wrap{flex:1;overflow:hidden;position:relative;background:repeating-conic-gradient(#222 0% 25%,#1a1a1a 0% 50%) 0 0/20px 20px;display:flex;align-items:flex-start;justify-content:flex-start;padding:0}
 .sheet-canvas-wrap canvas{image-rendering:pixelated;cursor:crosshair}
 .sheet-canvas-wrap canvas.empty{opacity:.3}
+.sheet-canvas-wrap.panning canvas{cursor:grab}
+.sheet-canvas-wrap.panning canvas:active{cursor:grabbing}
 .empty-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:var(--dim);pointer-events:none}
 .empty-msg.hidden{display:none}
 .empty-msg p{margin-bottom:12px;font-size:16px}
@@ -123,6 +125,10 @@ header h1{font-size:16px;margin-right:auto;color:var(--accent)}
     <input type="number" id="viewScale" value="2" min="1" max="8" step="1">
     <span>x</span>
   </div>
+  <button class="btn" id="btnZoomIn">🔍+ Zoom In</button>
+  <button class="btn" id="btnZoomOut">🔍- Zoom Out</button>
+  <button class="btn" id="btnFit">Fit</button>
+  <span id="zoomLevel" style="font-size:11px;color:var(--dim);min-width:30px;text-align:center">1x</span>
   <button class="btn" id="btnUpload">📁 Upload PNG</button>
   <input type="file" id="fileInput" accept="image/png" hidden>
   <button class="btn primary" id="btnExport" disabled>💾 Export JSON</button>
@@ -210,6 +216,10 @@ const S = {
   animations: [],     // { id, name, start, end, timing, loop, color }
   activeAnimId: null,
   playingAnimId: null,
+  zoom: 1,
+  panX: 0, panY: 0,
+  isPanning: false,
+  panStartX: 0, panStartY: 0,
   animColors: ['#e94560','#0fbcf9','#f39c12','#2ecc71','#9b59b6','#1abc9c','#e74c3c','#3498db','#e67e22','#1dd1a1','#5f27cd','#fd79a8'],
   nextId: 1,
   colorIdx: 0,
@@ -285,10 +295,12 @@ function render() {
   if (!S.img) return;
   const cw = S.actualCols * S.cellW;
   const ch = S.actualRows * S.cellH;
-  const sw = cw * S.scale;
-  const sh = ch * S.scale;
+  const z = S.zoom;
+  const sw = cw * z;
+  const sh = ch * z;
   canvas.width = sw;
   canvas.height = sh;
+  canvas.style.transform = `translate(${S.panX}px, ${S.panY}px)`;
 
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(S.img, 0, 0, sw, sh);
@@ -297,10 +309,10 @@ function render() {
   for (let i = 0; i < S.actualFrames; i++) {
     const col = i % S.actualCols;
     const row = Math.floor(i / S.actualCols);
-    const x = col * S.cellW * S.scale;
-    const y = row * S.cellH * S.scale;
-    const w = S.cellW * S.scale;
-    const h = S.cellH * S.scale;
+    const x = col * S.cellW * z;
+    const y = row * S.cellH * z;
+    const w = S.cellW * z;
+    const h = S.cellH * z;
 
     // Highlight active animation
     if (S.highlightActive && S.activeAnimId !== null) {
@@ -321,7 +333,7 @@ function render() {
     // Numbers
     if (S.showNumbers) {
       ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      ctx.font = `${Math.max(10, S.scale * 6)}px monospace`;
+      ctx.font = `${Math.max(10, z * 6)}px monospace`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       ctx.fillText(i, x + 3, y + 3);
@@ -560,11 +572,17 @@ function updateExportBtn() {
 // ===== EVENTS =====
 document.getElementById('addAnimBtn').addEventListener('click', () => addAnimation());
 
-['cellW','cellH','viewScale','cols','totalFrames'].forEach(id => {
+['cellW','cellH','cols','totalFrames'].forEach(id => {
   document.getElementById(id).addEventListener('input', () => {
     updateGrid();
     render();
   });
+});
+document.getElementById('viewScale').addEventListener('input', e => {
+  const v = parseFloat(e.target.value) || 1;
+  S.zoom = v;
+  document.getElementById('zoomLevel').textContent = v + 'x';
+  render();
 });
 document.getElementById('showGrid').addEventListener('change', e => { S.showGrid = e.target.checked; render(); });
 document.getElementById('showNumbers').addEventListener('change', e => { S.showNumbers = e.target.checked; render(); });
@@ -572,12 +590,97 @@ document.getElementById('highlightActive').addEventListener('change', e => { S.h
 document.getElementById('btnExport').addEventListener('click', doExport);
 document.getElementById('btnExport2').addEventListener('click', doExport);
 
+// ===== ZOOM =====
+function setZoom(newZoom, center) {
+  const oldZoom = S.zoom;
+  S.zoom = Math.max(0.25, Math.min(16, newZoom));
+  document.getElementById('zoomLevel').textContent = S.zoom + 'x';
+  document.getElementById('viewScale').value = S.zoom;
+  if (center) {
+    // Zoom toward center of viewport
+    const ww = wrap.clientWidth;
+    const wh = wrap.clientHeight;
+    const cx = ww / 2 - S.panX;
+    const cy = wh / 2 - S.panY;
+    S.panX = ww/2 - cx * (S.zoom / oldZoom);
+    S.panY = wh/2 - cy * (S.zoom / oldZoom);
+  }
+  render();
+}
+
+function zoomTowardPoint(newZoom, px, py) {
+  const oldZoom = S.zoom;
+  S.zoom = Math.max(0.25, Math.min(16, newZoom));
+  document.getElementById('zoomLevel').textContent = S.zoom + 'x';
+  document.getElementById('viewScale').value = S.zoom;
+  // px, py are mouse coords relative to wrap
+  const x = px - S.panX;
+  const y = py - S.panY;
+  S.panX = px - x * (S.zoom / oldZoom);
+  S.panY = py - y * (S.zoom / oldZoom);
+  render();
+}
+
+document.getElementById('btnZoomIn').addEventListener('click', () => setZoom(S.zoom * 1.5, true));
+document.getElementById('btnZoomOut').addEventListener('click', () => setZoom(S.zoom / 1.5, true));
+document.getElementById('btnFit').addEventListener('click', () => {
+  if (!S.img) return;
+  const cw = S.actualCols * S.cellW;
+  const ch = S.actualRows * S.cellH;
+  const ww = wrap.clientWidth - 40;
+  const wh = wrap.clientHeight - 40;
+  S.zoom = Math.min(ww / cw, wh / ch, 4);
+  S.panX = (wrap.clientWidth - cw * S.zoom) / 2;
+  S.panY = (wrap.clientHeight - ch * S.zoom) / 2;
+  document.getElementById('zoomLevel').textContent = S.zoom.toFixed(1) + 'x';
+  document.getElementById('viewScale').value = S.zoom;
+  render();
+});
+
+// Mouse wheel zoom (toward cursor)
+wrap.addEventListener('wheel', e => {
+  if (!S.img) return;
+  e.preventDefault();
+  const rect = wrap.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const factor = e.deltaY < 0 ? 1.15 : 1/1.15;
+  zoomTowardPoint(S.zoom * factor, mx, my);
+}, { passive: false });
+
+// Middle-click or Space+drag to pan
+wrap.addEventListener('mousedown', e => {
+  if (e.button === 1 || (e.button === 0 && e.altKey)) {
+    e.preventDefault();
+    S.isPanning = true;
+    S.panStartX = e.clientX - S.panX;
+    S.panStartY = e.clientY - S.panY;
+    wrap.classList.add('panning');
+  }
+});
+window.addEventListener('mousemove', e => {
+  if (!S.isPanning) return;
+  S.panX = e.clientX - S.panStartX;
+  S.panY = e.clientY - S.panStartY;
+  canvas.style.transform = `translate(${S.panX}px, ${S.panY}px)`;
+});
+window.addEventListener('mouseup', e => {
+  if (S.isPanning) {
+    S.isPanning = false;
+    wrap.classList.remove('panning');
+  }
+});
+
 // Click on sheet to set start/end frame
+let wasPanning = false;
+wrap.addEventListener('mousedown', e => {
+  wasPanning = e.button === 1 || (e.button === 0 && e.altKey);
+});
 canvas.addEventListener('click', e => {
-  if (!S.img || S.actualFrames === 0) return;
+  if (wasPanning || !S.img || S.actualFrames === 0) return;
   const rect = canvas.getBoundingClientRect();
-  const x = (e.clientX - rect.left) / S.scale;
-  const y = (e.clientY - rect.top) / S.scale;
+  const x = (e.clientX - rect.left) / S.zoom;
+  const y = (e.clientY - rect.top) / S.zoom;
   const col = Math.floor(x / S.cellW);
   const row = Math.floor(y / S.cellH);
   const frame = row * S.actualCols + col;
