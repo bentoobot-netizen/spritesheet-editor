@@ -648,9 +648,23 @@ wrap.addEventListener('wheel', e => {
   zoomTowardPoint(S.zoom * factor, mx, my);
 }, { passive: false });
 
-// Middle-click or Space+drag to pan
+// Space+drag or Middle-click or Alt+drag to pan (Figma-style)
+let spaceDown = false;
+window.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !e.repeat) {
+    e.preventDefault();
+    spaceDown = true;
+    wrap.classList.add('panning');
+  }
+});
+window.addEventListener('keyup', e => {
+  if (e.code === 'Space') {
+    spaceDown = false;
+    if (!S.isPanning) wrap.classList.remove('panning');
+  }
+});
 wrap.addEventListener('mousedown', e => {
-  if (e.button === 1 || (e.button === 0 && e.altKey)) {
+  if (e.button === 1 || (e.button === 0 && (e.altKey || spaceDown))) {
     e.preventDefault();
     S.isPanning = true;
     S.panStartX = e.clientX - S.panX;
@@ -667,7 +681,7 @@ window.addEventListener('mousemove', e => {
 window.addEventListener('mouseup', e => {
   if (S.isPanning) {
     S.isPanning = false;
-    wrap.classList.remove('panning');
+    if (!spaceDown) wrap.classList.remove('panning');
   }
 });
 
