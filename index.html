@@ -55,6 +55,9 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
 .frame-item.in-anim{border-left:3px solid var(--anim-color,var(--accent))}
 .frame-item .idx{color:var(--dim);font-size:10px;min-width:20px}
 .frame-item .dims{color:var(--dim);font-size:10px;margin-left:auto}
+.frame-item .fi{width:36px;background:var(--accent2);border:1px solid var(--border);color:#ccc;padding:1px 3px;border-radius:3px;font-size:10px;text-align:center;-moz-appearance:textfield}
+.frame-item .fi::-webkit-inner-spin-button,.frame-item .fi::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.frame-item .fi:focus{outline:1px solid var(--accent);border-color:var(--accent)}
 .frame-item .del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;padding:0 2px;line-height:1;opacity:0;transition:opacity .1s}
 .frame-item:hover .del{opacity:1}
 .frame-item .del:hover{color:var(--accent)}
@@ -272,7 +275,19 @@ window.addEventListener('keydown', e => {
   if (e.code === 'KeyR' && !e.repeat) setTool('rect');
   if (e.code === 'KeyV' && !e.repeat) setTool('select');
   if (e.code === 'KeyA' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); S.frames.forEach(f => S.selectedFrameIds.add(f.id)); refresh(); }
+  if (e.code === 'KeyD' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); duplicateSelected(); }
   if (e.code === 'Delete' || e.code === 'Backspace') { if (S.selectedFrameIds.size > 0) deleteSelectedFrames(); }
+  // Arrow keys move selected frame 1px
+  const arrowMap = { ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0] };
+  if (arrowMap[e.code] && S.selectedFrameIds.size > 0 && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    const [dx, dy] = arrowMap[e.code];
+    S.selectedFrameIds.forEach(fid => {
+      const f = S.frames.find(fr => fr.id === fid);
+      if (f) { f.x += dx; f.y += dy; }
+    });
+    refresh();
+  }
 });
 window.addEventListener('keyup', e => {
   if (e.code === 'Space') { S.spaceDown = false; if (S.mode !== 'panning') wrap.classList.remove('panning'); }
@@ -554,12 +569,22 @@ function renderFrameList() {
     div.className = 'frame-item' + (S.selectedFrameIds.has(f.id) ? ' selected' : '');
     const activeAnim = S.animations.find(a => a.id === S.activeAnimId);
     if (activeAnim && activeAnim.frameIds.includes(f.id)) { div.classList.add('in-anim'); div.style.setProperty('--anim-color', activeAnim.color); }
-    div.innerHTML = `<span class="idx">#${i}</span><span>${f.w}×${f.h}</span><span class="dims">${f.x},${f.y}</span><span class="del" data-del="${f.id}">×</span>`;
+    div.innerHTML = `<span class="idx">#${i}</span><input class="fi" type="number" value="${f.x}" data-fid="${f.id}" data-prop="x" title="X"><input class="fi" type="number" value="${f.y}" data-fid="${f.id}" data-prop="y" title="Y"><span>×</span><input class="fi" type="number" value="${f.w}" data-fid="${f.id}" data-prop="w" title="W"><input class="fi" type="number" value="${f.h}" data-fid="${f.id}" data-prop="h" title="H"><span class="del" data-del="${f.id}">×</span>`;
     div.addEventListener('click', ev => {
-      if (ev.target.closest('[data-del]')) return;
+      if (ev.target.closest('[data-del]') || ev.target.tagName === 'INPUT') return;
       if (ev.shiftKey) { S.selectedFrameIds.has(f.id) ? S.selectedFrameIds.delete(f.id) : S.selectedFrameIds.add(f.id); }
       else { S.selectedFrameIds.clear(); S.selectedFrameIds.add(f.id); }
       renderFrameList(); render();
+    });
+    div.querySelectorAll('.fi').forEach(inp => {
+      const stop = e => e.stopPropagation();
+      inp.addEventListener('click', stop); inp.addEventListener('mousedown', stop);
+      inp.addEventListener('change', ev => {
+        const val = parseInt(ev.target.value);
+        if (isNaN(val) || val < 0) return;
+        f[ev.target.dataset.prop] = val;
+        render();
+      });
     });
     div.querySelector('[data-del]').addEventListener('click', ev => {
       ev.stopPropagation();
@@ -582,6 +607,35 @@ function deleteSelectedFrames() {
   S.frames = S.frames.filter(f => !S.selectedFrameIds.has(f.id));
   S.animations.forEach(a => a.frameIds = a.frameIds.filter(fid => !S.selectedFrameIds.has(fid)));
   S.selectedFrameIds.clear(); refresh();
+}
+
+// Smart duplicate (Figma-style Ctrl+D)
+// Tracks: when you Ctrl+D, move the copy, then Ctrl+D again → uses the move delta
+let lastDupOrigId = null;
+let lastDupCopyId = null;
+function duplicateSelected() {
+  if (S.selectedFrameIds.size !== 1) return;
+  const fid = [...S.selectedFrameIds][0];
+  const orig = S.frames.find(f => f.id === fid);
+  if (!orig) return;
+
+  // Calculate offset
+  let dx = 20, dy = 20;
+  if (lastDupOrigId === orig.id && lastDupCopyId) {
+    // User may have moved the copy — measure actual offset
+    const prevCopy = S.frames.find(f => f.id === lastDupCopyId);
+    if (prevCopy) { dx = prevCopy.x - orig.x; dy = prevCopy.y - orig.y; }
+    if (dx === 0 && dy === 0) { dx = 20; dy = 20; }
+  }
+
+  const dup = { id: S.nextFrameId++, x: orig.x + dx, y: orig.y + dy, w: orig.w, h: orig.h };
+  S.frames.push(dup);
+  lastDupOrigId = orig.id;
+  lastDupCopyId = dup.id;
+  S.selectedFrameIds.clear();
+  S.selectedFrameIds.add(dup.id);
+  refresh();
+  toast(`Duplicated → #${S.frames.length}`);
 }
 function moveSelected(dir) {
   return () => {
