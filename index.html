@@ -133,8 +133,9 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
 
 <header>
   <h1>🎯 Sprite Sheet Editor</h1>
-  <button class="tool-btn" id="toolSelect" data-tool="select"><kbd>V</kbd> Select</button>
-  <button class="tool-btn active" id="toolRect" data-tool="rect"><kbd>R</kbd> Rectangle</button>
+  <button class="tool-btn active" id="toolSelect" data-tool="select"><kbd>V</kbd> Select</button>
+  <button class="tool-btn" id="toolHand" data-tool="hand"><kbd>H</kbd> Hand</button>
+  <button class="tool-btn" id="toolRect" data-tool="rect"><kbd>R</kbd> Rectangle</button>
   <div class="hdr-sep"></div>
   <button class="btn" id="btnZoomIn">🔍+</button>
   <button class="btn" id="btnZoomOut">🔍-</button>
@@ -218,7 +219,7 @@ const S = {
   nextAnimId: 1,
   colorIdx: 0,
   colors: ['#e94560','#0fbcf9','#f39c12','#2ecc71','#9b59b6','#1abc9c','#e74c3c','#3498db','#e67e22','#1dd1a1','#5f27cd','#fd79a8'],
-  tool: 'rect',
+  tool: 'select',
   zoom: 1, panX: 0, panY: 0,
   // Interaction state machine
   mode: 'idle', // 'idle' | 'panning' | 'drawing' | 'resizing' | 'dragging'
@@ -265,8 +266,10 @@ function wrapCoords(e) {
 function setTool(t) {
   S.tool = t;
   document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+  wrap.classList.toggle('panning', t === 'hand');
 }
 document.getElementById('toolSelect').addEventListener('click', () => setTool('select'));
+document.getElementById('toolHand').addEventListener('click', () => setTool('hand'));
 document.getElementById('toolRect').addEventListener('click', () => setTool('rect'));
 
 // ===== KEYBOARD =====
@@ -275,6 +278,7 @@ window.addEventListener('keydown', e => {
   if (e.code === 'Space' && !e.repeat) { e.preventDefault(); S.spaceDown = true; wrap.classList.add('panning'); }
   if (e.code === 'KeyR' && !e.repeat) setTool('rect');
   if (e.code === 'KeyV' && !e.repeat) setTool('select');
+  if (e.code === 'KeyH' && !e.repeat) setTool('hand');
   if (e.code === 'KeyA' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); S.frames.forEach(f => S.selectedFrameIds.add(f.id)); refresh(); }
   if (e.code === 'KeyD' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); duplicateSelected(); }
   if (e.code === 'Delete' || e.code === 'Backspace') { if (S.selectedFrameIds.size > 0) deleteSelectedFrames(); }
@@ -396,8 +400,8 @@ function cursorForHandle(name) {
 wrap.addEventListener('mousedown', e => {
   if (!S.img) return;
 
-  // Pan: middle-click or space+left
-  if (e.button === 1 || (e.button === 0 && S.spaceDown)) {
+  // Pan: middle-click, space+left, or hand tool
+  if (e.button === 1 || (e.button === 0 && (S.spaceDown || S.tool === 'hand'))) {
     e.preventDefault();
     S.mode = 'panning';
     S.panStartMX = e.clientX; S.panStartMY = e.clientY;
