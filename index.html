@@ -27,8 +27,8 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
 .canvas-area{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
 .canvas-wrap{flex:1;overflow:hidden;position:relative;background:repeating-conic-gradient(#222 0% 25%,#1a1a1a 0% 50%) 0 0/20px 20px}
 .canvas-wrap canvas{position:absolute;top:0;left:0;image-rendering:pixelated}
-.canvas-wrap.panning{cursor:grab}
-.canvas-wrap.panning:active{cursor:grabbing}
+.canvas-wrap.panning,.canvas-wrap.panning canvas{cursor:grab}
+.canvas-wrap.panning:active,.canvas-wrap.panning canvas:active{cursor:grabbing}
 
 .empty-msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:var(--dim);pointer-events:none;z-index:1;display:flex;flex-direction:column;align-items:center;gap:12px}
 .empty-msg.hidden{display:none}
