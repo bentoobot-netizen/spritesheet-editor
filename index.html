@@ -20,6 +20,7 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
 .btn:hover{background:#1a4080;color:#fff}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 .btn:disabled{opacity:.35;cursor:not-allowed}
+.tool-btn:focus,.btn:focus{outline:none}
 .hdr-info{font-size:11px;color:var(--dim);min-width:50px;text-align:center}
 
 .main{flex:1;display:flex;overflow:hidden}
@@ -265,7 +266,7 @@ function wrapCoords(e) {
 // ===== TOOLS =====
 function setTool(t) {
   S.tool = t;
-  document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+  document.querySelectorAll('.tool-btn').forEach(b => { b.classList.toggle('active', b.dataset.tool === t); b.blur(); });
   wrap.classList.toggle('panning', t === 'hand');
 }
 document.getElementById('toolSelect').addEventListener('click', () => setTool('select'));
@@ -301,8 +302,8 @@ window.addEventListener('keyup', e => {
 // ===== UPLOAD =====
 const fileInput = document.getElementById('fileInput');
 function triggerUpload() { fileInput.value = ''; fileInput.click(); }
-document.getElementById('btnUpload').addEventListener('click', triggerUpload);
-document.getElementById('btnUploadInline').addEventListener('click', triggerUpload);
+document.getElementById('btnUpload').addEventListener('click', e => { e.target.blur(); triggerUpload(); });
+document.getElementById('btnUploadInline').addEventListener('click', e => { e.target.blur(); triggerUpload(); });
 fileInput.addEventListener('change', e => { if (e.target.files[0]) loadImage(e.target.files[0]); });
 ['dragenter','dragover'].forEach(ev => wrap.addEventListener(ev, e => { e.preventDefault(); document.getElementById('dropOverlay').classList.add('visible'); }));
 ['dragleave','drop'].forEach(ev => wrap.addEventListener(ev, e => { e.preventDefault(); document.getElementById('dropOverlay').classList.remove('visible'); }));
