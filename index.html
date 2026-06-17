@@ -550,6 +550,7 @@ window.addEventListener('mouseup', e => {
       S.frames.push(frame);
       S.selectedFrameIds.clear();
       S.selectedFrameIds.add(frame.id);
+      setTool('select');
       refresh();
       toast(`Frame #${S.frames.length} (${w}×${h})`);
     }
