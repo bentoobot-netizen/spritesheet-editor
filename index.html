@@ -40,6 +40,9 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
 .sel-rect{position:absolute;border:2px solid var(--accent);background:rgba(233,69,96,.08);pointer-events:none;z-index:5;display:none}
 .sel-rect.active{display:block}
 .sel-rect.marquee{border-color:#0fbcf9;background:rgba(15,188,249,.05)}
+.smart-guide{position:absolute;pointer-events:none;z-index:8;display:none}
+.smart-guide-v{left:0;width:1px;background:#ff4757}
+.smart-guide-h{top:0;height:1px;background:#ff4757}
 .coords-bar{height:22px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:12px;font-size:11px;color:var(--dim);flex-shrink:0}
 .coords-bar span{min-width:60px}
 .coords-bar .sep{width:1px;height:14px;background:var(--border)}
@@ -199,6 +202,8 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
         <button class="upload-inline-btn" id="btnUploadInline">📁 Upload PNG</button>
       </div>
       <div class="drop-overlay" id="dropOverlay">Drop PNG here</div>
+      <div class="smart-guide smart-guide-v" id="guideV"></div>
+      <div class="smart-guide smart-guide-h" id="guideH"></div>
     </div>
     <div class="coords-bar">
       <span id="coordsInfo">x: — y: —</span>
@@ -335,6 +340,8 @@ const HANDLE_SIZE=8, HANDLE_HIT=12;
 const canvas=document.getElementById('sheetCanvas'), ctx=canvas.getContext('2d');
 const wrap=document.getElementById('canvasWrap'), selRectEl=document.getElementById('selRect');
 const prevCanvas=document.getElementById('previewCanvas'), prevCtx=prevCanvas.getContext('2d');
+const guideV=document.getElementById('guideV'),guideH=document.getElementById('guideH');
+const GUIDE_THRESHOLD=5;
 const rulerHC=document.getElementById('rulerHCanvas'), rulerVC=document.getElementById('rulerVCanvas');
 // Ruler contexts obtained in renderRulers()
 
@@ -351,6 +358,14 @@ function imgToScreen(ix,iy){ const r=wrap.getBoundingClientRect(); return[ix*S.z
 function screenToImg(sx,sy){ const r=wrap.getBoundingClientRect(); return[(sx-r.left-S.panX)/S.zoom,(sy-r.top-S.panY)/S.zoom]; }
 function wrapCoords(e){ const r=wrap.getBoundingClientRect(); return[e.clientX-r.left,e.clientY-r.top]; }
 function snap(v){ return S.snap>0?Math.round(v/S.snap)*S.snap:Math.round(v); }
+function hideGuides(){guideV.style.display='none';guideH.style.display='none';}
+function getSnapGuides(activeIds){const targets=[];S.frames.forEach(f=>{if(activeIds.has(f.id))return;targets.push({l:f.x,r:f.x+f.w,t:f.y,b:f.y+f.h,cx:f.x+f.w/2,cy:f.y+f.h/2});});return targets;}
+function findBestSnap(val,targets,getter){let best=null,bd=GUIDE_THRESHOLD;targets.forEach(t=>{const d=Math.abs(getter(t)-val);if(d<bd){bd=d;best=getter(t);}});return best!==null?{val:best,dist:bd}:null;}
+function applySmartGuides(edges,targets){const guides={l:null,r:null,t:null,b:null,cx:null,cy:null};const sl=findBestSnap(edges.l,targets,t=>t.l);if(sl){guides.l=sl.val;edges.l=sl.val;}const sr=findBestSnap(edges.r,targets,t=>t.r);if(sr){guides.r=sr.val;edges.r=sr.val;}const st=findBestSnap(edges.t,targets,t=>t.t);if(st){guides.t=st.val;edges.t=st.val;}const sb=findBestSnap(edges.b,targets,t=>t.b);if(sb){guides.b=sb.val;edges.b=sb.val;}const scx=findBestSnap(edges.cx,targets,t=>t.cx);if(scx){guides.cx=scx.val;edges.cx=scx.val;edges.l=scx.val-edges.w/2;edges.r=scx.val+edges.w/2;}
+const scy=findBestSnap(edges.cy,targets,t=>t.cy);if(scy){guides.cy=scy.val;edges.cy=scy.val;edges.t=scy.val-edges.h/2;edges.b=scy.val+edges.h/2;}
+return{edges,guides};}
+function showGuides(guides,activeIds){const allIds=new Set(activeIds);const[wx,wy]=wrapCoords({clientX:0,clientY:0});const wr=wrap.getBoundingClientRect();guideV.style.display='none';guideH.style.display='none';let vmin=1e9,vmax=-1e9,hmin=1e9,hmax=-1e9;S.frames.forEach(f=>{if(!allIds.has(f.id))return;vmin=Math.min(vmin,f.x);vmax=Math.max(vmax,f.x+f.w);hmin=Math.min(hmin,f.y);hmax=Math.max(hmax,f.y+f.h);});if(guides.l!==null){const sx=vmin*S.zoom+S.panX;guideV.style.display='block';guideV.style.left=sx+'px';guideV.style.top='0';guideV.style.height='100%';}else if(guides.r!==null){const sx=vmax*S.zoom+S.panX;guideV.style.display='block';guideV.style.left=sx+'px';guideV.style.top='0';guideV.style.height='100%';}else if(guides.cx!==null){const sx=((vmin+vmax)/2)*S.zoom+S.panX;guideV.style.display='block';guideV.style.left=sx+'px';guideV.style.top='0';guideV.style.height='100%';}
+if(guides.t!==null){const sy=hmin*S.zoom+S.panY;guideH.style.display='block';guideH.style.top=sy+'px';guideH.style.left='0';guideH.style.width='100%';}else if(guides.b!==null){const sy=hmax*S.zoom+S.panY;guideH.style.display='block';guideH.style.top=sy+'px';guideH.style.left='0';guideH.style.width='100%';}else if(guides.cy!==null){const sy=((hmin+hmax)/2)*S.zoom+S.panY;guideH.style.display='block';guideH.style.top=sy+'px';guideH.style.left='0';guideH.style.width='100%';}}
 
 // ==================== HANDLE + BBOX ====================
 function getBoundingBox(ids){
@@ -616,8 +631,13 @@ window.addEventListener('mousemove',e=>{
   }
   if(S.mode==='dragging'){
     const dx=(cx-S.dragStartMX)/S.zoom,dy=(cy-S.dragStartMY)/S.zoom;
-    S.dragFrameIds.forEach(id=>{const f=S.frames.find(fr=>fr.id===id);const o=S.dragOrig.get(id);if(f&&o){f.x=snap(o.x+dx);f.y=snap(o.y+dy);}});
-    renderFrameList();render();return;
+    const guides=getSnapGuides(S.dragFrameIds);
+    S.dragFrameIds.forEach(id=>{const f=S.frames.find(fr=>fr.id===id);const o=S.dragOrig.get(id);if(f&&o){
+      const edges={l:snap(o.x+dx),r:snap(o.x+dx+o.w),t:snap(o.y+dy),b:snap(o.y+dy+o.h),cx:snap(o.x+dx+o.w/2),cy:snap(o.y+dy+o.h/2),w:o.w,h:o.h};
+      const res=applySmartGuides(edges,guides);const ox=edges.l-f.x,oy=edges.t-f.y;f.x=Math.round(edges.l);f.y=Math.round(edges.t);f.w=Math.round(edges.w);f.h=Math.round(edges.h);
+      S.dragFrameIds.forEach(oid=>{if(oid!==id){const of2=S.frames.find(fr2=>fr2.id===oid);const oo=S.dragOrig.get(oid);if(of2&&oo){of2.x=Math.round(oo.x+ox);of2.y=Math.round(oo.y+oy);}}});
+    }});
+    showGuides(guides,S.dragFrameIds);renderFrameList();render();return;
   }
   if(S.mode==='marquee'){
     const[wx,wy]=wrapCoords(e);const r=wrap.getBoundingClientRect();
@@ -640,8 +660,8 @@ window.addEventListener('mouseup',e=>{
     if(w>=3&&h>=3){history.push();const frame={id:S.nextFrameId++,x,y,w,h};S.frames.push(frame);S.selectedFrameIds.clear();S.selectedFrameIds.add(frame.id);setTool('select');refresh();toast(`Frame #${S.frames.length} (${w}×${h})`);}
     return;
   }
-  if(S.mode==='resizing'){S.mode='idle';history.push();S.resizeFrameId=null;S.resizeOrig=null;S.resizeOrigBB=null;S.resizeOrigFrames=null;updateExportBtn();return;}
-  if(S.mode==='dragging'){S.mode='idle';history.push();S.dragFrameIds=null;S.dragOrig=null;updateExportBtn();return;}
+  if(S.mode==='resizing'){S.mode='idle';hideGuides();history.push();S.resizeFrameId=null;S.resizeOrig=null;S.resizeOrigBB=null;S.resizeOrigFrames=null;updateExportBtn();return;}
+  if(S.mode==='dragging'){S.mode='idle';hideGuides();history.push();S.dragFrameIds=null;S.dragOrig=null;updateExportBtn();return;}
   if(S.mode==='marquee'){
     S.mode='idle';selRectEl.classList.remove('active','marquee');
     const[ix1,iy1]=screenToImg(S.marqueeStartSX,S.marqueeStartSY);
