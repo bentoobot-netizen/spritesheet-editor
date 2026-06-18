@@ -181,16 +181,7 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
       <div class="tab" data-tab="anims">Anims (<span id="animCount">0</span>)</div>
     </div>
     <div class="tab-content active" id="tabFrames">
-      <div class="align-bar" id="alignBar">
-        <button class="btn align-icon-btn" data-align="left" title="Align Left" style="padding:4px 6px">${ICONS.left}</button>
-        <button class="btn align-icon-btn" data-align="right" title="Align Right" style="padding:4px 6px">${ICONS.right}</button>
-        <button class="btn align-icon-btn" data-align="top" title="Align Top" style="padding:4px 6px">${ICONS.top}</button>
-        <button class="btn align-icon-btn" data-align="bottom" title="Align Bottom" style="padding:4px 6px">${ICONS.bottom}</button>
-        <button class="btn align-icon-btn" data-align="centerH" title="Center Horizontally" style="padding:4px 6px">${ICONS.centerH}</button>
-        <button class="btn align-icon-btn" data-align="centerV" title="Center Vertically" style="padding:4px 6px">${ICONS.centerV}</button>
-        <button class="btn align-icon-btn" data-align="distributeH" title="Distribute Horizontally" style="padding:4px 6px">${ICONS.distributeH}</button>
-        <button class="btn align-icon-btn" data-align="distributeV" title="Distribute Vertically" style="padding:4px 6px">${ICONS.distributeV}</button>
-      </div>
+      <div class="align-bar" id="alignBar"></div>
       <div class="frame-list-actions">
         <button class="btn" id="btnSelectAll" title="Select All (Ctrl+A)">All</button>
         <button class="btn" id="btnDeselectAll" title="Deselect All">None</button>
@@ -239,6 +230,10 @@ const ICONS={
   distributeH:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 5.5C6 5.37 6.05 5.24 6.15 5.15C6.24 5.05 6.37 5 6.5 5C6.63 5 6.76 5.05 6.85 5.15C6.95 5.24 7 5.37 7 5.5V17.5C7 17.63 6.95 17.76 6.85 17.85C6.76 17.95 6.63 18 6.5 18C6.37 18 6.24 17.95 6.15 17.85C6.05 17.76 6 17.63 6 17.5V5.5Z" fill="#ccc"/><path d="M12.25 15C12.45 15 12.64 14.92 12.78 14.78C12.92 14.64 13 14.45 13 14.25V8.75C13 8.55 12.92 8.36 12.78 8.22C12.64 8.08 12.45 8 12.25 8H11.75C11.55 8 11.36 8.08 11.22 8.22C11.08 8.36 11 8.55 11 8.75V14.25C11 14.66 11.34 15 11.75 15H12.25Z" fill="#ccc"/><path d="M17 5.5C17 5.37 17.05 5.24 17.15 5.15C17.24 5.05 17.37 5 17.5 5C17.63 5 17.76 5.05 17.85 5.15C17.95 5.24 18 5.37 18 5.5V17.5C18 17.63 17.95 17.76 17.85 17.85C17.76 17.95 17.63 18 17.5 18C17.37 18 17.24 17.95 17.15 17.85C17.05 17.76 17 17.63 17 17.5V5.5Z" fill="#ccc"/></svg>',
   distributeV:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5.5 6C5.37 6 5.24 6.05 5.15 6.15C5.05 6.24 5 6.37 5 6.5C5 6.63 5.05 6.76 5.15 6.85C5.24 6.95 5.37 7 5.5 7H17.5C17.63 7 17.76 6.95 17.85 6.85C17.95 6.76 18 6.63 18 6.5C18 6.37 17.95 6.24 17.85 6.15C17.76 6.05 17.63 6 17.5 6H5.5Z" fill="#ccc"/><path d="M15 12.25C15 12.45 14.92 12.64 14.78 12.78C14.64 12.92 14.45 13 14.25 13H8.75C8.55 13 8.36 12.92 8.22 12.78C8.08 12.64 8 12.45 8 12.25V11.75C8 11.34 8.34 11 8.75 11H14.25C14.66 11 15 11.34 15 11.75V12.25Z" fill="#ccc"/><path d="M5.5 17C5.37 17 5.24 17.05 5.15 17.15C5.05 17.24 5 17.37 5 17.5C5 17.63 5.05 17.76 5.15 17.85C5.24 17.95 5.37 18 5.5 18H17.5C17.63 18 17.76 17.95 17.85 17.85C17.95 17.76 18 17.63 18 17.5C18 17.37 17.95 17.24 17.85 17.15C17.76 17.05 17.63 17 17.5 17H5.5Z" fill="#ccc"/></svg>'
 };
+
+// Populate align bar with SVG icons
+(function(){const bar=document.getElementById('alignBar');const btns=[['left','Align Left'],['right','Align Right'],['top','Align Top'],['bottom','Align Bottom'],['centerH','Center Horizontally'],['centerV','Center Vertically'],['distributeH','Distribute Horizontally'],['distributeV','Distribute Vertically']];
+btns.forEach(([key,title])=>{const b=document.createElement('button');b.className='btn align-icon-btn';b.dataset.align=key;b.title=title;b.style.padding='4px 6px';b.innerHTML=ICONS[key];bar.appendChild(b);});})();
 
 // ==================== STATE ====================
 const S = {
