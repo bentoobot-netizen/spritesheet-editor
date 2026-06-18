@@ -136,17 +136,7 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
   <button class="btn" id="btnFit" title="Fit to View">Fit</button>
   <span class="hdr-info" id="zoomLevel">1x</span>
   <div class="hdr-sep"></div>
-  <div style="position:relative;display:inline-block" id="snapWrap">
-    <button class="btn" id="btnSnap" title="Snap to Grid (G)">⊞ ⊘</button>
-    <select id="snapSelect" style="position:absolute;top:100%;left:0;margin-top:2px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:5px;font-size:11px;padding:3px 6px;cursor:pointer;z-index:10;display:none">
-      <option value="0">Off</option>
-      <option value="1">1 px</option>
-      <option value="2">2 px</option>
-      <option value="4">4 px</option>
-      <option value="8">8 px</option>
-      <option value="16">16 px</option>
-    </select>
-  </div>
+  <button class="btn" id="btnSnap" title="Snap to Grid (G)">⊞ ⊘</button>
   <div class="hdr-sep"></div>
   <button class="btn" id="btnUpload" title="Upload PNG">📁 Upload</button>
   <button class="btn" id="btnImport" title="Import JSON">📥 Import</button>
@@ -233,7 +223,8 @@ const ICONS={
 
 // Populate align bar with SVG icons
 (function(){const bar=document.getElementById('alignBar');const btns=[['left','Align Left'],['right','Align Right'],['top','Align Top'],['bottom','Align Bottom'],['centerH','Center Horizontally'],['centerV','Center Vertically'],['distributeH','Distribute Horizontally'],['distributeV','Distribute Vertically']];
-btns.forEach(([key,title])=>{const b=document.createElement('button');b.className='btn align-icon-btn';b.dataset.align=key;b.title=title;b.style.padding='4px 6px';b.innerHTML=ICONS[key];bar.appendChild(b);});})();
+const order=[['left','Align Left'],['centerH','Align Horizontal Center'],['right','Align Right'],['top','Align Top'],['centerV','Align Vertical Center'],['bottom','Align Bottom'],['distributeH','Distribute Horizontally'],['distributeV','Distribute Vertically']];
+order.forEach(([key,title])=>{const b=document.createElement('button');b.className='btn align-icon-btn';b.dataset.align=key;b.title=title;b.style.padding='4px 6px';b.innerHTML=ICONS[key];bar.appendChild(b);});})();
 
 // ==================== STATE ====================
 const S = {
@@ -335,25 +326,14 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>{if(e.code==='Space'){S.spaceDown=false;if(S.mode!=='panning')wrap.classList.remove('panning');}});
 
 // ==================== SNAP ====================
-const snapSelect=document.getElementById('snapSelect'),snapWrap=document.getElementById('snapWrap');
-document.getElementById('btnSnap').addEventListener('click',e=>{
-  e.target.blur(); snapSelect.style.display=snapSelect.style.display==='none'?'block':'none';
-});
-snapSelect.addEventListener('change',e=>{
-  S.snap=parseInt(e.target.value); const btn=document.getElementById('btnSnap');
-  btn.textContent=S.snap>0?`⊞ ${S.snap}px`:'⊞ ⊘';
-  btn.classList.toggle('snap-on',S.snap>0);
-  snapSelect.style.display='none'; render();
-});
-snapSelect.addEventListener('click',e=>e.stopPropagation());
-snapWrap.addEventListener('mouseleave',()=>{snapSelect.style.display='none';});
 function cycleSnap(){
-  const vals=[0,1,2,4,8,16]; const ci=vals.indexOf(S.snap); const ni=(ci+1)%vals.length; S.snap=vals[ni];
+  S.snapIdx=(S.snapIdx+1)%S.snapCycle.length; S.snap=S.snapCycle[S.snapIdx];
   const btn=document.getElementById('btnSnap');
-  btn.textContent=S.snap>0?`⊞ ${S.snap}px`:'⊞ ⊘';
+  btn.textContent=S.snap>0?`⊞ ${S.snap}`:'⊞ ⊘';
   btn.classList.toggle('snap-on',S.snap>0);
-  snapSelect.value=S.snap; btn.blur(); render();
+  btn.blur(); render();
 }
+document.getElementById('btnSnap').addEventListener('click',e=>{e.target.blur();cycleSnap();});
 document.getElementById('btnUndo').addEventListener('click',()=>{history.undo();});
 document.getElementById('btnRedo').addEventListener('click',()=>{history.redo();});
 
