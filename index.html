@@ -631,13 +631,14 @@ window.addEventListener('mousemove',e=>{
   }
   if(S.mode==='dragging'){
     const dx=(cx-S.dragStartMX)/S.zoom,dy=(cy-S.dragStartMY)/S.zoom;
-    const guides=getSnapGuides(S.dragFrameIds);
-    S.dragFrameIds.forEach(id=>{const f=S.frames.find(fr=>fr.id===id);const o=S.dragOrig.get(id);if(f&&o){
-      const edges={l:snap(o.x+dx),r:snap(o.x+dx+o.w),t:snap(o.y+dy),b:snap(o.y+dy+o.h),cx:snap(o.x+dx+o.w/2),cy:snap(o.y+dy+o.h/2),w:o.w,h:o.h};
-      const res=applySmartGuides(edges,guides);const ox=edges.l-f.x,oy=edges.t-f.y;f.x=Math.round(edges.l);f.y=Math.round(edges.t);f.w=Math.round(edges.w);f.h=Math.round(edges.h);
-      S.dragFrameIds.forEach(oid=>{if(oid!==id){const of2=S.frames.find(fr2=>fr2.id===oid);const oo=S.dragOrig.get(oid);if(of2&&oo){of2.x=Math.round(oo.x+ox);of2.y=Math.round(oo.y+oy);}}});
-    }});
-    showGuides(guides,S.dragFrameIds);renderFrameList();render();return;
+    const targets=getSnapGuides(S.dragFrameIds);
+    let bx=1e9,by=1e9,br=-1e9,bb=-1e9;
+    S.dragFrameIds.forEach(id=>{const o=S.dragOrig.get(id);if(o){bx=Math.min(bx,o.x+dx);by=Math.min(by,o.y+dy);br=Math.max(br,o.x+dx+o.w);bb=Math.max(bb,o.y+dy+o.h);}});
+    const edges={l:snap(bx),r:snap(br),t:snap(by),b:snap(bb),cx:snap((bx+br)/2),cy:snap((by+bb)/2),w:br-bx,h:bb-by};
+    const res=applySmartGuides(edges,targets);
+    const sdx=edges.l-bx,sdy=edges.t-by;
+    S.dragFrameIds.forEach(id=>{const f=S.frames.find(fr=>fr.id===id);const o=S.dragOrig.get(id);if(f&&o){f.x=Math.round(snap(o.x+dx)+sdx);f.y=Math.round(snap(o.y+dy)+sdy);}});
+    showGuides(res.guides,S.dragFrameIds);renderFrameList();render();return;
   }
   if(S.mode==='marquee'){
     const[wx,wy]=wrapCoords(e);const r=wrap.getBoundingClientRect();
