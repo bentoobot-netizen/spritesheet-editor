@@ -136,7 +136,17 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
   <button class="btn" id="btnFit" title="Fit to View">Fit</button>
   <span class="hdr-info" id="zoomLevel">1x</span>
   <div class="hdr-sep"></div>
-  <button class="btn" id="btnSnap" title="Snap to Grid (G)">⊞ ⊘</button>
+  <div style="position:relative;display:inline-block" id="snapWrap">
+    <button class="btn" id="btnSnap" title="Snap to Grid (G)">⊞ ⊘</button>
+    <select id="snapSelect" style="position:absolute;top:100%;left:0;margin-top:2px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:5px;font-size:11px;padding:3px 6px;cursor:pointer;z-index:10;display:none">
+      <option value="0">Off</option>
+      <option value="1">1 px</option>
+      <option value="2">2 px</option>
+      <option value="4">4 px</option>
+      <option value="8">8 px</option>
+      <option value="16">16 px</option>
+    </select>
+  </div>
   <div class="hdr-sep"></div>
   <button class="btn" id="btnUpload" title="Upload PNG">📁 Upload</button>
   <button class="btn" id="btnImport" title="Import JSON">📥 Import</button>
@@ -172,14 +182,14 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
     </div>
     <div class="tab-content active" id="tabFrames">
       <div class="align-bar" id="alignBar">
-        <button class="btn" data-align="left" title="Align Left">⬅</button>
-        <button class="btn" data-align="right" title="Align Right">➡</button>
-        <button class="btn" data-align="top" title="Align Top">⬆</button>
-        <button class="btn" data-align="bottom" title="Align Bottom">⬇</button>
-        <button class="btn" data-align="centerH" title="Center Horizontally">=H</button>
-        <button class="btn" data-align="centerV" title="Center Vertically">=V</button>
-        <button class="btn" data-align="distributeH" title="Distribute Horizontally">↔</button>
-        <button class="btn" data-align="distributeV" title="Distribute Vertically">↕</button>
+        <button class="btn align-icon-btn" data-align="left" title="Align Left" style="padding:4px 6px">${ICONS.left}</button>
+        <button class="btn align-icon-btn" data-align="right" title="Align Right" style="padding:4px 6px">${ICONS.right}</button>
+        <button class="btn align-icon-btn" data-align="top" title="Align Top" style="padding:4px 6px">${ICONS.top}</button>
+        <button class="btn align-icon-btn" data-align="bottom" title="Align Bottom" style="padding:4px 6px">${ICONS.bottom}</button>
+        <button class="btn align-icon-btn" data-align="centerH" title="Center Horizontally" style="padding:4px 6px">${ICONS.centerH}</button>
+        <button class="btn align-icon-btn" data-align="centerV" title="Center Vertically" style="padding:4px 6px">${ICONS.centerV}</button>
+        <button class="btn align-icon-btn" data-align="distributeH" title="Distribute Horizontally" style="padding:4px 6px">${ICONS.distributeH}</button>
+        <button class="btn align-icon-btn" data-align="distributeV" title="Distribute Vertically" style="padding:4px 6px">${ICONS.distributeV}</button>
       </div>
       <div class="frame-list-actions">
         <button class="btn" id="btnSelectAll" title="Select All (Ctrl+A)">All</button>
@@ -218,6 +228,18 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
 <div class="toast" id="toast"></div>
 
 <script>
+// ==================== ALIGN ICONS (Ricardo's SVGs) ====================
+const ICONS={
+  left:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M17.25 10C17.45 10 17.64 9.92 17.78 9.78C17.92 9.64 18 9.45 18 9.25V8.75C18 8.55 17.92 8.36 17.78 8.22C17.64 8.08 17.45 8 17.25 8H8.75C8.55 8 8.36 8.08 8.22 8.22C8.08 8.36 8 8.55 8 8.75V9.25C8 9.66 8.34 10 8.75 10H17.25ZM13.25 15C13.45 15 13.64 14.92 13.78 14.78C13.92 14.64 14 14.45 14 14.25V13.75C14 13.55 13.92 13.36 13.78 13.22C13.64 13.08 13.45 13 13.25 13H8.75C8.55 13 8.36 13.08 8.22 13.22C8.08 13.36 8 13.55 8 13.75V14.25C8 14.66 8.34 15 8.75 15H13.25Z" fill="#ccc"/><path d="M6 17.5C6 17.63 5.95 17.76 5.85 17.85C5.76 17.95 5.63 18 5.5 18C5.37 18 5.24 17.95 5.15 17.85C5.05 17.76 5 17.63 5 17.5V5.5C5 5.37 5.05 5.24 5.15 5.15C5.24 5.05 5.37 5 5.5 5C5.63 5 5.76 5.05 5.85 5.15C5.95 5.24 6 5.37 6 5.5V17.5Z" fill="#ccc"/></svg>',
+  right:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M6.75 10C6.55 10 6.36 9.92 6.22 9.78C6.08 9.64 6 9.45 6 9.25V8.75C6 8.55 6.08 8.36 6.22 8.22C6.36 8.08 6.55 8 6.75 8H15.25C15.45 8 15.64 8.08 15.78 8.22C15.92 8.36 16 8.55 16 8.75V9.25C16 9.45 15.92 9.64 15.78 9.78C15.64 9.92 15.45 10 15.25 10H6.75ZM10.75 15C10.55 15 10.36 14.92 10.22 14.78C10.08 14.64 10 14.45 10 14.25V13.75C10 13.55 10.08 13.36 10.22 13.22C10.36 13.08 10.55 13 10.75 13H15.25C15.45 13 15.64 13.08 15.78 13.22C15.92 13.36 16 13.55 16 13.75V14.25C16 14.45 15.92 14.64 15.78 14.78C15.64 14.92 15.45 15 15.25 15H10.75Z" fill="#ccc"/><path d="M18 17.5C18 17.63 18.05 17.76 18.15 17.85C18.24 17.95 18.37 18 18.5 18C18.63 18 18.76 17.95 18.85 17.85C18.95 17.76 19 17.63 19 17.5V5.5C19 5.37 18.95 5.24 18.85 5.15C18.76 5.05 18.63 5 18.5 5C18.37 5 18.24 5.05 18.15 5.15C18.05 5.24 18 5.37 18 5.5V17.5Z" fill="#ccc"/></svg>',
+  top:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M10 6.75C10 6.55 9.92 6.36 9.78 6.22C9.64 6.08 9.45 6 9.25 6H8.75C8.55 6 8.36 6.08 8.22 6.22C8.08 6.36 8 6.55 8 6.75V16.25C8 16.66 8.34 17 8.75 17H9.25C9.45 17 9.64 16.92 9.78 16.78C9.92 16.64 10 16.45 10 16.25V6.75ZM15 8.75C15 8.55 14.92 8.36 14.78 8.22C14.64 8.08 14.45 8 14.25 8H13.75C13.55 8 13.36 8.08 13.22 8.22C13.08 8.36 13 8.55 13 8.75V14.25C13 14.66 13.34 15 13.75 15H14.25C14.45 15 14.64 14.92 14.78 14.78C14.92 14.64 15 14.45 15 14.25V8.75Z" fill="#ccc"/><path fill-rule="evenodd" clip-rule="evenodd" d="M17.5 11C17.63 11 17.76 11.05 17.85 11.15C17.95 11.24 18 11.37 18 11.5C18 11.63 17.95 11.76 17.85 11.85C17.76 11.95 17.63 12 17.5 12H15V11H17.5ZM13 11H10V12H13V11ZM5.5 11H8V12H5.5C5.37 12 5.24 11.95 5.15 11.85C5.05 11.76 5 11.63 5 11.5C5 11.37 5.05 11.24 5.15 11.15C5.24 11.05 5.37 11 5.5 11Z" fill="#ccc"/></svg>',
+  bottom:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M10 6.75C10 6.55 9.92 6.36 9.78 6.22C9.64 6.08 9.45 6 9.25 6H8.75C8.55 6 8.36 6.08 8.22 6.22C8.08 6.36 8 6.55 8 6.75V15.25C8 15.66 8.34 16 8.75 16H9.25C9.45 16 9.64 15.92 9.78 15.78C9.92 15.64 10 15.45 10 15.25V6.75ZM15 10.75C15 10.55 14.92 10.36 14.78 10.22C14.64 10.08 14.45 10 14.25 10H13.75C13.55 10 13.36 10.08 13.22 10.22C13.08 10.36 13 10.55 13 10.75V15.25C13 15.66 13.34 16 13.75 16H14.25C14.45 16 14.64 15.92 14.78 15.78C14.92 15.64 15 15.45 15 15.25V10.75Z" fill="#ccc"/><path d="M17.5 18C17.63 18 17.76 18.05 17.85 18.15C17.95 18.24 18 18.37 18 18.5C18 18.63 17.95 18.76 17.85 18.85C17.76 18.95 17.63 19 17.5 19H5.5C5.37 19 5.24 18.95 5.15 18.85C5.05 18.76 5 18.63 5 18.5C5 18.37 5.05 18.24 5.15 18.15C5.24 18.05 5.37 18 5.5 18H17.5Z" fill="#ccc"/></svg>',
+  centerH:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M17.25 10C17.45 10 17.64 9.92 17.78 9.78C17.92 9.64 18 9.45 18 9.25V8.75C18 8.55 17.92 8.36 17.78 8.22C17.64 8.08 17.45 8 17.25 8H7.75C7.55 8 7.36 8.08 7.22 8.22C7.08 8.36 7 8.55 7 8.75V9.25C7 9.66 7.34 10 7.75 10H17.25ZM15.25 15C15.45 15 15.64 14.92 15.78 14.78C15.92 14.64 16 14.45 16 14.25V13.75C16 13.55 15.92 13.36 15.78 13.22C15.64 13.08 15.45 13 15.25 13H9.75C9.55 13 9.36 13.08 9.22 13.22C9.08 13.36 9 13.55 9 13.75V14.25C9 14.66 9.34 15 9.75 15H15.25Z" fill="#ccc"/><path fill-rule="evenodd" clip-rule="evenodd" d="M13 17.5C13 17.63 12.95 17.76 12.85 17.85C12.76 17.95 12.63 18 12.5 18C12.37 18 12.24 17.95 12.15 17.85C12.05 17.76 12 17.63 12 17.5V15H13V17.5ZM13 13V10H12V13H13ZM12 5.5V8H13V5.5C13 5.37 12.95 5.24 12.85 5.15C12.76 5.05 12.63 5 12.5 5C12.37 5 12.24 5.05 12.15 5.15C12.05 5.24 12 5.37 12 5.5Z" fill="#ccc"/></svg>',
+  centerV:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M10 6.75C10 6.55 9.92 6.36 9.78 6.22C9.64 6.08 9.45 6 9.25 6H8.75C8.55 6 8.36 6.08 8.22 6.22C8.08 6.36 8 6.55 8 6.75V16.25C8 16.66 8.34 17 8.75 17H9.25C9.45 17 9.64 16.92 9.78 16.78C9.92 16.64 10 16.45 10 16.25V6.75ZM15 8.75C15 8.55 14.92 8.36 14.78 8.22C14.64 8.08 14.45 8 14.25 8H13.75C13.55 8 13.36 8.08 13.22 8.22C13.08 8.36 13 8.55 13 8.75V14.25C13 14.66 13.34 15 13.75 15H14.25C14.45 15 14.64 14.92 14.78 14.78C14.92 14.64 15 14.45 15 14.25V8.75Z" fill="#ccc"/><path fill-rule="evenodd" clip-rule="evenodd" d="M17.5 11C17.63 11 17.76 11.05 17.85 11.15C17.95 11.24 18 11.37 18 11.5C18 11.63 17.95 11.76 17.85 11.85C17.76 11.95 17.63 12 17.5 12H15V11H17.5ZM13 11H10V12H13V11ZM5.5 11H8V12H5.5C5.37 12 5.24 11.95 5.15 11.85C5.05 11.76 5 11.63 5 11.5C5 11.37 5.05 11.24 5.15 11.15C5.24 11.05 5.37 11 5.5 11Z" fill="#ccc"/></svg>',
+  distributeH:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 5.5C6 5.37 6.05 5.24 6.15 5.15C6.24 5.05 6.37 5 6.5 5C6.63 5 6.76 5.05 6.85 5.15C6.95 5.24 7 5.37 7 5.5V17.5C7 17.63 6.95 17.76 6.85 17.85C6.76 17.95 6.63 18 6.5 18C6.37 18 6.24 17.95 6.15 17.85C6.05 17.76 6 17.63 6 17.5V5.5Z" fill="#ccc"/><path d="M12.25 15C12.45 15 12.64 14.92 12.78 14.78C12.92 14.64 13 14.45 13 14.25V8.75C13 8.55 12.92 8.36 12.78 8.22C12.64 8.08 12.45 8 12.25 8H11.75C11.55 8 11.36 8.08 11.22 8.22C11.08 8.36 11 8.55 11 8.75V14.25C11 14.66 11.34 15 11.75 15H12.25Z" fill="#ccc"/><path d="M17 5.5C17 5.37 17.05 5.24 17.15 5.15C17.24 5.05 17.37 5 17.5 5C17.63 5 17.76 5.05 17.85 5.15C17.95 5.24 18 5.37 18 5.5V17.5C18 17.63 17.95 17.76 17.85 17.85C17.76 17.95 17.63 18 17.5 18C17.37 18 17.24 17.95 17.15 17.85C17.05 17.76 17 17.63 17 17.5V5.5Z" fill="#ccc"/></svg>',
+  distributeV:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5.5 6C5.37 6 5.24 6.05 5.15 6.15C5.05 6.24 5 6.37 5 6.5C5 6.63 5.05 6.76 5.15 6.85C5.24 6.95 5.37 7 5.5 7H17.5C17.63 7 17.76 6.95 17.85 6.85C17.95 6.76 18 6.63 18 6.5C18 6.37 17.95 6.24 17.85 6.15C17.76 6.05 17.63 6 17.5 6H5.5Z" fill="#ccc"/><path d="M15 12.25C15 12.45 14.92 12.64 14.78 12.78C14.64 12.92 14.45 13 14.25 13H8.75C8.55 13 8.36 12.92 8.22 12.78C8.08 12.64 8 12.45 8 12.25V11.75C8 11.34 8.34 11 8.75 11H14.25C14.66 11 15 11.34 15 11.75V12.25Z" fill="#ccc"/><path d="M5.5 17C5.37 17 5.24 17.05 5.15 17.15C5.05 17.24 5 17.37 5 17.5C5 17.63 5.05 17.76 5.15 17.85C5.24 17.95 5.37 18 5.5 18H17.5C17.63 18 17.76 17.95 17.85 17.85C17.95 17.76 18 17.63 18 17.5C18 17.37 17.95 17.24 17.85 17.15C17.76 17.05 17.63 17 17.5 17H5.5Z" fill="#ccc"/></svg>'
+};
+
 // ==================== STATE ====================
 const S = {
   img:null, imgW:0, imgH:0,
@@ -318,14 +340,25 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>{if(e.code==='Space'){S.spaceDown=false;if(S.mode!=='panning')wrap.classList.remove('panning');}});
 
 // ==================== SNAP ====================
-function cycleSnap(){
-  S.snapIdx=(S.snapIdx+1)%S.snapCycle.length; S.snap=S.snapCycle[S.snapIdx];
-  const btn=document.getElementById('btnSnap');
-  btn.textContent=S.snap>0?`⊞ ${S.snap}`:'⊞ ⊘';
+const snapSelect=document.getElementById('snapSelect'),snapWrap=document.getElementById('snapWrap');
+document.getElementById('btnSnap').addEventListener('click',e=>{
+  e.target.blur(); snapSelect.style.display=snapSelect.style.display==='none'?'block':'none';
+});
+snapSelect.addEventListener('change',e=>{
+  S.snap=parseInt(e.target.value); const btn=document.getElementById('btnSnap');
+  btn.textContent=S.snap>0?`⊞ ${S.snap}px`:'⊞ ⊘';
   btn.classList.toggle('snap-on',S.snap>0);
-  btn.blur(); render();
+  snapSelect.style.display='none'; render();
+});
+snapSelect.addEventListener('click',e=>e.stopPropagation());
+snapWrap.addEventListener('mouseleave',()=>{snapSelect.style.display='none';});
+function cycleSnap(){
+  const vals=[0,1,2,4,8,16]; const ci=vals.indexOf(S.snap); const ni=(ci+1)%vals.length; S.snap=vals[ni];
+  const btn=document.getElementById('btnSnap');
+  btn.textContent=S.snap>0?`⊞ ${S.snap}px`:'⊞ ⊘';
+  btn.classList.toggle('snap-on',S.snap>0);
+  snapSelect.value=S.snap; btn.blur(); render();
 }
-document.getElementById('btnSnap').addEventListener('click',e=>{e.target.blur();cycleSnap();});
 document.getElementById('btnUndo').addEventListener('click',()=>{history.undo();});
 document.getElementById('btnRedo').addEventListener('click',()=>{history.redo();});
 
@@ -525,12 +558,19 @@ function renderFrameList(){
     // Thumbnail
     const thumb=document.createElement('canvas');thumb.width=36;thumb.height=36;thumb.className='thumb';
     if(S.img){const tc=thumb.getContext('2d');tc.imageSmoothingEnabled=false;const sc=Math.min(36/f.w,36/f.h);const tw=f.w*sc,th=f.h*sc;tc.drawImage(S.img,f.x,f.y,f.w,f.h,(36-tw)/2,36-th,tw,th);}
-    div.appendChild(thumb);
-    div.innerHTML+=`<span class="idx">#${i}</span><span class="pos">${f.x},${f.y}</span><input class="fi" type="number" value="${f.w}" data-fid="${f.id}" data-prop="w" title="Width"><span>×</span><input class="fi" type="number" value="${f.h}" data-fid="${f.id}" data-prop="h" title="Height"><span class="del" data-del="${f.id}">×</span>`;
+    const idxSpan=document.createElement('span');idxSpan.className='idx';idxSpan.textContent='#'+i;
+    const posSpan=document.createElement('span');posSpan.className='pos';posSpan.textContent=f.x+','+f.y;
+    const wInput=document.createElement('input');wInput.className='fi';wInput.type='number';wInput.value=f.w;wInput.dataset.fid=f.id;wInput.dataset.prop='w';wInput.title='Width';
+    const xSpan=document.createElement('span');xSpan.textContent='×';
+    const hInput=document.createElement('input');hInput.className='fi';hInput.type='number';hInput.value=f.h;hInput.dataset.fid=f.id;hInput.dataset.prop='h';hInput.title='Height';
+    const delSpan=document.createElement('span');delSpan.className='del';delSpan.dataset.del=f.id;delSpan.textContent='×';
+    div.appendChild(thumb);div.appendChild(idxSpan);div.appendChild(posSpan);div.appendChild(wInput);div.appendChild(xSpan);div.appendChild(hInput);div.appendChild(delSpan);
     div.addEventListener('click',ev=>{if(ev.target.closest('[data-del]')||ev.target.tagName==='INPUT')return;if(ev.shiftKey){S.selectedFrameIds.has(f.id)?S.selectedFrameIds.delete(f.id):S.selectedFrameIds.add(f.id);}else{S.selectedFrameIds.clear();S.selectedFrameIds.add(f.id);}renderFrameList();render();});
-    div.querySelectorAll('.fi').forEach(inp=>{const stop=e=>e.stopPropagation();inp.addEventListener('click',stop);inp.addEventListener('mousedown',stop);
-      inp.addEventListener('change',ev=>{const val=parseInt(ev.target.value);if(isNaN(val)||val<3)return;history.push();f[ev.target.dataset.prop]=val;render();});});
-    div.querySelector('[data-del]').addEventListener('click',ev=>{ev.stopPropagation();history.push();S.frames=S.frames.filter(fr=>fr.id!==f.id);S.selectedFrameIds.delete(f.id);S.animations.forEach(a=>a.frameIds=a.frameIds.filter(fid=>fid!==f.id));refresh();});
+    const stop=e=>e.stopPropagation(); wInput.addEventListener('click',stop); wInput.addEventListener('mousedown',stop);
+    wInput.addEventListener('change',ev=>{const val=parseInt(ev.target.value);if(isNaN(val)||val<3)return;history.push();f[ev.target.dataset.prop]=val;render();});
+    hInput.addEventListener('click',stop); hInput.addEventListener('mousedown',stop);
+    hInput.addEventListener('change',ev=>{const val=parseInt(ev.target.value);if(isNaN(val)||val<3)return;history.push();f[ev.target.dataset.prop]=val;render();});
+    delSpan.addEventListener('click',ev=>{ev.stopPropagation();history.push();S.frames=S.frames.filter(fr=>fr.id!==f.id);S.selectedFrameIds.delete(f.id);S.animations.forEach(a=>a.frameIds=a.frameIds.filter(fid=>fid!==f.id));refresh();});
     list.appendChild(div);
   });
 }
