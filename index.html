@@ -186,7 +186,7 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
 
 <div class="main">
   <div class="canvas-area" id="canvasArea">
-    <div class="ruler-corner"></div>
+    <div class="ruler-corner" id="rulerCorner"></div>
     <div class="ruler-h" id="rulerH" style="display:none"><canvas id="rulerHCanvas"></canvas></div>
     <div class="ruler-v" id="rulerV" style="display:none"><canvas id="rulerVCanvas"></canvas></div>
     <div class="canvas-wrap" id="canvasWrap">
@@ -331,7 +331,7 @@ const canvas=document.getElementById('sheetCanvas'), ctx=canvas.getContext('2d')
 const wrap=document.getElementById('canvasWrap'), selRectEl=document.getElementById('selRect');
 const prevCanvas=document.getElementById('previewCanvas'), prevCtx=prevCanvas.getContext('2d');
 const rulerHC=document.getElementById('rulerHCanvas'), rulerVC=document.getElementById('rulerVCanvas');
-const rulerH=ctx.getContext.bind(ctx); const rulerV=ctx.getContext.bind(ctx);
+// Ruler contexts obtained in renderRulers()
 
 // ==================== UNDO/REDO ====================
 const history={stack:[],idx:-1,max:50,
@@ -685,7 +685,7 @@ function autoDetect(){
   if(fs>=0)frameCols.push([fs,S.imgW]);
   frameCols.forEach(([cx1,cx2])=>{
     const fid=S.nextFrameId++;
-    S.frames.push({id,fid,x:cx1,y:rowRanges[0][0],w:cx2-cx1,h});
+    S.frames.push({id,x:cx1,y:rowRanges[0][0],w:cx2-cx1,h});
   });
   refresh();toast(`Detected ${S.frames.length} frames (${S.frames[0]?.w}×${S.frames[0]?.h})`);
 }
@@ -879,7 +879,7 @@ function generatePhaser(){
   const frames=[],animations={},meta={};let maxW=0,maxH=0;
   S.frames.forEach((f,i)=>{const n=getFrameName(f,i);frames.push({filename:'spritesheet.png',frame:{x:f.x,y:f.y,w:f.w,h:f.h},rotated:false,trimmed:false,spriteSourceSize:{x:0,y:0,w:f.w,h:f.h},sourceSize:{w:f.w,h:f.h}});maxW=Math.max(maxW,f.w);maxH=Math.max(maxH,f.h);});
   S.animations.forEach(a=>{animations[a.name]={frames:a.frameIds.map(fid=>{const i=S.frames.findIndex(f=>f.id===fid);return i>=0?{key:getFrameName(S.frames[i],i),duration:a.timing/1000}:null;}).filter(Boolean),repeat:a.loop?'-1':'0'};});
-  return{textures:[{image:'spritesheet.png',format:RGBA8888,size:{w:S.imgW,h:S.imgH},scale:1,frames}]};
+  return{textures:[{image:'spritesheet.png',format:'RGBA8888',size:{w:S.imgW,h:S.imgH},scale:1,frames}]};
 }
 
 function generateGeneric(){
