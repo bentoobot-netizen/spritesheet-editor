@@ -40,9 +40,7 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
 .sel-rect{position:absolute;border:2px solid var(--accent);background:rgba(233,69,96,.08);pointer-events:none;z-index:5;display:none}
 .sel-rect.active{display:block}
 .sel-rect.marquee{border-color:#0fbcf9;background:rgba(15,188,249,.05)}
-.smart-guide{position:absolute;pointer-events:none;z-index:8;display:none}
-.smart-guide-v{left:0;width:1px;background:#ff4757}
-.smart-guide-h{top:0;height:1px;background:#ff4757}
+.guide-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:8}
 .coords-bar{height:22px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:12px;font-size:11px;color:var(--dim);flex-shrink:0}
 .coords-bar span{min-width:60px}
 .coords-bar .sep{width:1px;height:14px;background:var(--border)}
@@ -202,8 +200,7 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
         <button class="upload-inline-btn" id="btnUploadInline">📁 Upload PNG</button>
       </div>
       <div class="drop-overlay" id="dropOverlay">Drop PNG here</div>
-      <div class="smart-guide smart-guide-v" id="guideV"></div>
-      <div class="smart-guide smart-guide-h" id="guideH"></div>
+      <svg class="guide-svg" id="guideSvg"></svg>
     </div>
     <div class="coords-bar">
       <span id="coordsInfo">x: — y: —</span>
@@ -340,8 +337,8 @@ const HANDLE_SIZE=8, HANDLE_HIT=12;
 const canvas=document.getElementById('sheetCanvas'), ctx=canvas.getContext('2d');
 const wrap=document.getElementById('canvasWrap'), selRectEl=document.getElementById('selRect');
 const prevCanvas=document.getElementById('previewCanvas'), prevCtx=prevCanvas.getContext('2d');
-const guideV=document.getElementById('guideV'),guideH=document.getElementById('guideH');
-const GUIDE_THRESHOLD=5;
+const guideSvg=document.getElementById('guideSvg');
+const GUIDE_THRESHOLD=1;
 const rulerHC=document.getElementById('rulerHCanvas'), rulerVC=document.getElementById('rulerVCanvas');
 // Ruler contexts obtained in renderRulers()
 
@@ -358,14 +355,13 @@ function imgToScreen(ix,iy){ const r=wrap.getBoundingClientRect(); return[ix*S.z
 function screenToImg(sx,sy){ const r=wrap.getBoundingClientRect(); return[(sx-r.left-S.panX)/S.zoom,(sy-r.top-S.panY)/S.zoom]; }
 function wrapCoords(e){ const r=wrap.getBoundingClientRect(); return[e.clientX-r.left,e.clientY-r.top]; }
 function snap(v){ return S.snap>0?Math.round(v/S.snap)*S.snap:Math.round(v); }
-function hideGuides(){guideV.style.display='none';guideH.style.display='none';}
+function hideGuides(){guideSvg.innerHTML='';}
 function getSnapGuides(activeIds){const targets=[];S.frames.forEach(f=>{if(activeIds.has(f.id))return;targets.push({l:f.x,r:f.x+f.w,t:f.y,b:f.y+f.h,cx:f.x+f.w/2,cy:f.y+f.h/2});});return targets;}
 function findBestSnap(val,targets,getter){let best=null,bd=GUIDE_THRESHOLD;targets.forEach(t=>{const d=Math.abs(getter(t)-val);if(d<bd){bd=d;best=getter(t);}});return best!==null?{val:best,dist:bd}:null;}
 function applySmartGuides(edges,targets){const guides={l:null,r:null,t:null,b:null,cx:null,cy:null};const sl=findBestSnap(edges.l,targets,t=>t.l);if(sl){guides.l=sl.val;edges.l=sl.val;}const sr=findBestSnap(edges.r,targets,t=>t.r);if(sr){guides.r=sr.val;edges.r=sr.val;}const st=findBestSnap(edges.t,targets,t=>t.t);if(st){guides.t=st.val;edges.t=st.val;}const sb=findBestSnap(edges.b,targets,t=>t.b);if(sb){guides.b=sb.val;edges.b=sb.val;}const scx=findBestSnap(edges.cx,targets,t=>t.cx);if(scx){guides.cx=scx.val;edges.cx=scx.val;edges.l=scx.val-edges.w/2;edges.r=scx.val+edges.w/2;}
 const scy=findBestSnap(edges.cy,targets,t=>t.cy);if(scy){guides.cy=scy.val;edges.cy=scy.val;edges.t=scy.val-edges.h/2;edges.b=scy.val+edges.h/2;}
 return{edges,guides};}
-function showGuides(guides,activeIds){const allIds=new Set(activeIds);const[wx,wy]=wrapCoords({clientX:0,clientY:0});const wr=wrap.getBoundingClientRect();guideV.style.display='none';guideH.style.display='none';let vmin=1e9,vmax=-1e9,hmin=1e9,hmax=-1e9;S.frames.forEach(f=>{if(!allIds.has(f.id))return;vmin=Math.min(vmin,f.x);vmax=Math.max(vmax,f.x+f.w);hmin=Math.min(hmin,f.y);hmax=Math.max(hmax,f.y+f.h);});if(guides.l!==null){const sx=vmin*S.zoom+S.panX;guideV.style.display='block';guideV.style.left=sx+'px';guideV.style.top='0';guideV.style.height='100%';}else if(guides.r!==null){const sx=vmax*S.zoom+S.panX;guideV.style.display='block';guideV.style.left=sx+'px';guideV.style.top='0';guideV.style.height='100%';}else if(guides.cx!==null){const sx=((vmin+vmax)/2)*S.zoom+S.panX;guideV.style.display='block';guideV.style.left=sx+'px';guideV.style.top='0';guideV.style.height='100%';}
-if(guides.t!==null){const sy=hmin*S.zoom+S.panY;guideH.style.display='block';guideH.style.top=sy+'px';guideH.style.left='0';guideH.style.width='100%';}else if(guides.b!==null){const sy=hmax*S.zoom+S.panY;guideH.style.display='block';guideH.style.top=sy+'px';guideH.style.left='0';guideH.style.width='100%';}else if(guides.cy!==null){const sy=((hmin+hmax)/2)*S.zoom+S.panY;guideH.style.display='block';guideH.style.top=sy+'px';guideH.style.left='0';guideH.style.width='100%';}}
+function showGuides(g,activeIds){guideSvg.innerHTML='';const allIds=new Set(activeIds);let vmin=1e9,vmax=-1e9,hmin=1e9,hmax=-1e9;S.frames.forEach(f=>{if(!allIds.has(f.id))return;vmin=Math.min(vmin,f.x);vmax=Math.max(vmax,f.x+f.w);hmin=Math.min(hmin,f.y);hmax=Math.max(hmax,f.y+f.h);});const lines=[];if(g.l!==null)lines.push(`<line x1="${vmin*S.zoom+S.panX}" y1="0" x2="${vmin*S.zoom+S.panX}" y2="${1e5}" stroke="#ff4757" stroke-width="1"/>`);if(g.r!==null)lines.push(`<line x1="${vmax*S.zoom+S.panX}" y1="0" x2="${vmax*S.zoom+S.panX}" y2="${1e5}" stroke="#ff4757" stroke-width="1"/>`);if(g.cx!==null)lines.push(`<line x1="${(vmin+vmax)/2*S.zoom+S.panX}" y1="0" x2="${(vmin+vmax)/2*S.zoom+S.panX}" y2="${1e5}" stroke="#ff4757" stroke-width="1" stroke-dasharray="4 3"/>`);if(g.t!==null)lines.push(`<line x1="0" y1="${hmin*S.zoom+S.panY}" x2="${1e5}" y2="${hmin*S.zoom+S.panY}" stroke="#ff4757" stroke-width="1"/>`);if(g.b!==null)lines.push(`<line x1="0" y1="${hmax*S.zoom+S.panY}" x2="${1e5}" y2="${hmax*S.zoom+S.panY}" stroke="#ff4757" stroke-width="1"/>`);if(g.cy!==null)lines.push(`<line x1="0" y1="${(hmin+hmax)/2*S.zoom+S.panY}" x2="${1e5}" y2="${(hmin+hmax)/2*S.zoom+S.panY}" stroke="#ff4757" stroke-width="1" stroke-dasharray="4 3"/>`);guideSvg.innerHTML=lines.join('');}
 
 // ==================== HANDLE + BBOX ====================
 function getBoundingBox(ids){
