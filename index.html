@@ -356,10 +356,16 @@ function screenToImg(sx,sy){ const r=wrap.getBoundingClientRect(); return[(sx-r.
 function wrapCoords(e){ const r=wrap.getBoundingClientRect(); return[e.clientX-r.left,e.clientY-r.top]; }
 function snap(v){ return S.snap>0?Math.round(v/S.snap)*S.snap:Math.round(v); }
 function hideGuides(){guideSvg.innerHTML='';}
-function getSnapTargets(activeIds){const targets=[];S.frames.forEach(f=>{if(activeIds.has(f.id))return;targets.push({l:f.x,r:f.x+f.w,t:f.y,b:f.y+f.h,cx:f.x+f.w/2,cy:f.y+f.h/2});});return targets;}
-function findBestSnap(edges,tEdges){let best=null,bd=GUIDE_THRESHOLD;const draggedKeys=['l','r','cx'],targetKeys=['l','r','cx'];for(let i=0;i<draggedKeys.length;i++){for(let j=0;j<targetKeys.length;j++){const dv=edges[draggedKeys[i]],tv=tEdges[targetKeys[j]];if(dv===undefined||tv===undefined)continue;const d=Math.abs(dv-tv);if(d<bd){bd=d;best={dist:d,sdx:tv-dv,guidePos:tv,draggedEdge:draggedKeys[i],targetEdge:targetKeys[j]};}}}return best;}
-function applySmartGuides(edges,targets){let xBest=null,yBest=null;targets.forEach(t=>{const xr=findBestSnap({l:edges.l,r:edges.r,cx:edges.cx},{l:t.l,r:t.r,cx:t.cx});if(xr&&(!xBest||xr.dist<xBest.dist))xBest=xr;const yr=findBestSnap({l:edges.t,r:edges.b,cx:edges.cy},{l:t.t,r:t.b,cx:t.cy});if(yr&&(!yBest||yr.dist<yBest.dist))yBest=yr;});return{xBest,yBest};}
-function showGuides(result,activeIds){guideSvg.innerHTML='';if(!result)return;const allIds=new Set(activeIds);let vmin=1e9,vmax=-1e9,hmin=1e9,hmax=-1e9;S.frames.forEach(f=>{if(!allIds.has(f.id))return;vmin=Math.min(vmin,f.x);vmax=Math.max(vmax,f.x+f.w);hmin=Math.min(hmin,f.y);hmax=Math.max(hmax,f.y+f.h);});const lines=[];const xLine=(x,dash)=>`<line x1="${x*S.zoom+S.panX}" y1="${-1e5}" x2="${x*S.zoom+S.panX}" y2="${2e5}" stroke="#ff4757" stroke-width="1"${dash?' stroke-dasharray="4 3"':''}/>`;const yLine=(y,dash)=>`<line x1="${-1e5}" y1="${y*S.zoom+S.panY}" x2="${2e5}" y2="${y*S.zoom+S.panY}" stroke="#ff4757" stroke-width="1"${dash?' stroke-dasharray="4 3"':''}/>`;if(result.xBest){const isCenter=result.xBest.draggedEdge==='cx';lines.push(xLine(result.xBest.guidePos,isCenter));}if(result.yBest){const isCenter=result.yBest.draggedEdge==='cy';lines.push(yLine(result.yBest.guidePos,isCenter));}guideSvg.innerHTML=lines.join('');}
+function getSnapGuides(activeIds){const targets=[];S.frames.forEach(f=>{if(activeIds.has(f.id))return;targets.push({l:f.x,r:f.x+f.w,t:f.y,b:f.y+f.h,cx:f.x+f.w/2,cy:f.y+f.h/2});});return targets;}
+function findBestSnap(val,targets,getter){let best=null,bd=GUIDE_THRESHOLD;targets.forEach(t=>{const d=Math.abs(getter(t)-val);if(d<bd){bd=d;best=getter(t);}});return best!==null?{val:best,dist:bd}:null;}
+function applySmartGuides(edges,targets){const guides={l:null,r:null,t:null,b:null,cx:null,cy:null};const sl=findBestSnap(edges.l,targets,t=>t.l);const sr=findBestSnap(edges.r,targets,t=>t.r);const scx=findBestSnap(edges.cx,targets,t=>t.cx);
+let xWinner=null;[sl,sr,scx].forEach(s=>{if(s&&(!xWinner||s.dist<xWinner.dist))xWinner=s;});
+if(xWinner===sl&&sl){guides.l=sl.val;}else if(xWinner===sr&&sr){guides.r=sr.val;}else if(xWinner===scx&&scx){guides.cx=scx.val;}
+const st=findBestSnap(edges.t,targets,t=>t.t);const sb=findBestSnap(edges.b,targets,t=>t.b);const scy=findBestSnap(edges.cy,targets,t=>t.cy);
+let yWinner=null;[st,sb,scy].forEach(s=>{if(s&&(!yWinner||s.dist<yWinner.dist))yWinner=s;});
+if(yWinner===st&&st){guides.t=st.val;}else if(yWinner===sb&&sb){guides.b=sb.val;}else if(yWinner===scy&&scy){guides.cy=scy.val;}
+return guides;}
+function showGuides(g,activeIds){guideSvg.innerHTML='';const allIds=new Set(activeIds);let vmin=1e9,vmax=-1e9,hmin=1e9,hmax=-1e9;S.frames.forEach(f=>{if(!allIds.has(f.id))return;vmin=Math.min(vmin,f.x);vmax=Math.max(vmax,f.x+f.w);hmin=Math.min(hmin,f.y);hmax=Math.max(hmax,f.y+f.h);});const lines=[];if(g.l!==null)lines.push(`<line x1="${vmin*S.zoom+S.panX}" y1="0" x2="${vmin*S.zoom+S.panX}" y2="${1e5}" stroke="#ff4757" stroke-width="1"/>`);if(g.r!==null)lines.push(`<line x1="${vmax*S.zoom+S.panX}" y1="0" x2="${vmax*S.zoom+S.panX}" y2="${1e5}" stroke="#ff4757" stroke-width="1"/>`);if(g.cx!==null)lines.push(`<line x1="${(vmin+vmax)/2*S.zoom+S.panX}" y1="0" x2="${(vmin+vmax)/2*S.zoom+S.panX}" y2="${1e5}" stroke="#ff4757" stroke-width="1" stroke-dasharray="4 3"/>`);if(g.t!==null)lines.push(`<line x1="0" y1="${hmin*S.zoom+S.panY}" x2="${1e5}" y2="${hmin*S.zoom+S.panY}" stroke="#ff4757" stroke-width="1"/>`);if(g.b!==null)lines.push(`<line x1="0" y1="${hmax*S.zoom+S.panY}" x2="${1e5}" y2="${hmax*S.zoom+S.panY}" stroke="#ff4757" stroke-width="1"/>`);if(g.cy!==null)lines.push(`<line x1="0" y1="${(hmin+hmax)/2*S.zoom+S.panY}" x2="${1e5}" y2="${(hmin+hmax)/2*S.zoom+S.panY}" stroke="#ff4757" stroke-width="1" stroke-dasharray="4 3"/>`);guideSvg.innerHTML=lines.join('');}
 
 // ==================== HANDLE + BBOX ====================
 function getBoundingBox(ids){
@@ -624,18 +630,19 @@ window.addEventListener('mousemove',e=>{
     renderFrameList();render();return;
   }
   if(S.mode==='dragging'){
-    const targets=getSnapTargets(S.dragFrameIds);
+    const targets=getSnapGuides(S.dragFrameIds);
     const dx=(cx-S.dragStartMX)/S.zoom,dy=(cy-S.dragStartMY)/S.zoom;
     let bx=1e9,by=1e9,br=-1e9,bb=-1e9;
     S.dragFrameIds.forEach(id=>{const o=S.dragOrig.get(id);if(o){bx=Math.min(bx,o.x+dx);by=Math.min(by,o.y+dy);br=Math.max(br,o.x+dx+o.w);bb=Math.max(bb,o.y+dy+o.h);}});
-    const edges={l:snap(bx),r:snap(br),t:snap(by),b:snap(bb),cx:snap((bx+br)/2),cy:snap((by+bb)/2)};
-    const result=applySmartGuides(edges,targets);
-    const sdx=result.xBest?result.xBest.sdx:0;
-    const sdy=result.yBest?result.yBest.sdy:0;
+    const edges={l:snap(bx),r:snap(br),t:snap(by),b:snap(bb),cx:snap((bx+br)/2),cy:snap((by+bb)/2),w:br-bx,h:bb-by};
+    const guides=applySmartGuides(edges,targets);
+    let sdx=0,sdy=0;
+    if(guides.l!==null)sdx=guides.l-edges.l;else if(guides.r!==null)sdx=guides.r-edges.r;else if(guides.cx!==null)sdx=guides.cx-edges.cx;
+    if(guides.t!==null)sdy=guides.t-edges.t;else if(guides.b!==null)sdy=guides.b-edges.b;else if(guides.cy!==null)sdy=guides.cy-edges.cy;
     S.dragFrameIds.forEach(id=>{const f=S.frames.find(fr=>fr.id===id);const o=S.dragOrig.get(id);if(f&&o){f.x=Math.round(o.x+dx+sdx);f.y=Math.round(o.y+dy+sdy);}});
     if(sdx!==0){S.dragStartMX+=sdx*S.zoom;S.dragFrameIds.forEach(id=>{const o=S.dragOrig.get(id);if(o){o.x+=sdx;}});}
     if(sdy!==0){S.dragStartMY+=sdy*S.zoom;S.dragFrameIds.forEach(id=>{const o=S.dragOrig.get(id);if(o){o.y+=sdy;}});}
-    showGuides(result,S.dragFrameIds);renderFrameList();render();return;
+    showGuides(guides,S.dragFrameIds);renderFrameList();render();return;
   }
   if(S.mode==='marquee'){
     const[wx,wy]=wrapCoords(e);const r=wrap.getBoundingClientRect();
