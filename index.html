@@ -329,7 +329,7 @@ const S = {
 const HANDLE_SIZE=8, HANDLE_HIT=12;
 const canvas=document.getElementById('sheetCanvas'), ctx=canvas.getContext('2d');
 const wrap=document.getElementById('canvasWrap'), selRectEl=document.getElementById('selRect');
-const prevCanvas=document.getElementById('previewCanvas'), prevCtx=prevCanvas.getContext('2d');
+const prevCanvas=document.getElementById('previewCanvas'); const prevCtx=prevCanvas?prevCanvas.getContext('2d'):null;
 const rulerHC=document.getElementById('rulerHCanvas'), rulerVC=document.getElementById('rulerVCanvas');
 // Ruler contexts obtained in renderRulers()
 
@@ -856,14 +856,14 @@ function playPreview(animId){
     if(S.playingAnimId!==animId)return;if(!lt)lt=t;
     if(t-lt>=anim.timing){lt=t;fi++;if(fi>=anim.frameIds.length)fi=anim.loop?0:anim.frameIds.length-1;}
     const f=S.frames.find(fr=>fr.id===anim.frameIds[fi]);
-    prevCtx.clearRect(0,0,prevCanvas.width,prevCanvas.height);prevCtx.imageSmoothingEnabled=false;
+    if(!prevCtx)return;prevCtx.clearRect(0,0,prevCanvas.width,prevCanvas.height);prevCtx.imageSmoothingEnabled=false;
     if(S.onionSkin&&fi>0){const pf=S.frames.find(pr=>pr.id===anim.frameIds[fi-1]);if(pf){prevCtx.globalAlpha=.3;prevCtx.drawImage(S.img,pf.x,pf.y,pf.w,pf.h,(prevCanvas.width-pf.w*sc)/2,prevCanvas.height-pf.h*sc,pf.w*sc,pf.h*sc);prevCtx.globalAlpha=1;}}
     if(f)prevCtx.drawImage(S.img,f.x,f.y,f.w,f.h,(prevCanvas.width-f.w*sc)/2,prevCanvas.height-f.h*sc,f.w*sc,f.h*sc);
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);S.activeAnimId=animId;renderAnimList();renderFrameList();render();
 }
-function stopPreview(){S.playingAnimId=null;prevCtx.clearRect(0,0,prevCanvas.width,prevCanvas.height);document.getElementById('previewInfo').textContent='Select an animation to preview';}
+function stopPreview(){S.playingAnimId=null;if(prevCtx)prevCtx.clearRect(0,0,prevCanvas.width,prevCanvas.height);}
 
 // ==================== EXPORT ====================
 function getFrameName(f,i){return f.name||`frame_${i}`;}
