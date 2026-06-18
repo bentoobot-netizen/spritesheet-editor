@@ -295,7 +295,7 @@ const ICONS={
 // Populate align bar with SVG icons
 (function(){const bar=document.getElementById('alignBar');
 const order=[['left','Align Left'],['centerH','Align Horizontal Center'],['right','Align Right'],['top','Align Top'],['centerV','Align Vertical Center'],['bottom','Align Bottom'],['distributeH','Distribute Horizontally'],['distributeV','Distribute Vertically']];
-order.forEach(([key,title])=>{const b=document.createElement('button');b.className='btn align-icon-btn';b.dataset.align=key;b.title=title;b.style.padding='4px 6px';b.innerHTML=ICONS[key];bar.appendChild(b});})();
+order.forEach(([key,title])=>{const b=document.createElement('button');b.className='btn align-icon-btn';b.dataset.align=key;b.title=title;b.style.padding='4px 6px';b.innerHTML=ICONS[key];bar.appendChild(b)});})();
 
 // ==================== PREFERENCES (localStorage) ====================
 const prefs={get(k,d){try{return JSON.parse(localStorage.getItem('sse_'+k))??d;}catch{return d;}},set(k,v){try{localStorage.setItem('sse_'+k,JSON.stringify(v));}catch{}}};
