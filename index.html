@@ -224,6 +224,10 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
       <div class="frame-list" id="frameList"></div>
     </div>
     <div class="tab-content" id="tabAnims">
+      <div class="preview-panel">
+        <canvas id="previewCanvas" width="240" height="240" style="display:block;width:100%;background:#222;border-radius:4px;image-rendering:pixelated"></canvas>
+        <div id="previewInfo" style="font-size:11px;color:#888;padding:4px 0;text-align:center">Select an animation to preview</div>
+      </div>
       <div class="anim-list" id="animList"></div>
       <button class="add-anim-btn" id="addAnimBtn">+ Add Animation</button>
     </div>
@@ -329,7 +333,7 @@ const S = {
 const HANDLE_SIZE=8, HANDLE_HIT=12;
 const canvas=document.getElementById('sheetCanvas'), ctx=canvas.getContext('2d');
 const wrap=document.getElementById('canvasWrap'), selRectEl=document.getElementById('selRect');
-const prevCanvas=document.getElementById('previewCanvas'); const prevCtx=prevCanvas?prevCanvas.getContext('2d'):null;
+const prevCanvas=document.getElementById('previewCanvas'), prevCtx=prevCanvas.getContext('2d');
 const rulerHC=document.getElementById('rulerHCanvas'), rulerVC=document.getElementById('rulerVCanvas');
 // Ruler contexts obtained in renderRulers()
 
@@ -850,20 +854,20 @@ function playPreview(animId){
   stopPreview();const anim=S.animations.find(a=>a.id===animId);if(!anim||!S.img||!anim.frameIds.length)return;S.playingAnimId=animId;
   let maxW=0,maxH=0;anim.frameIds.forEach(fid=>{const f=S.frames.find(fr=>fr.id===fid);if(f){maxW=Math.max(maxW,f.w);maxH=Math.max(maxH,f.h);}});
   const sc=Math.min(2,120/Math.max(maxW,maxH));prevCanvas.width=Math.round(maxW*sc);prevCanvas.height=Math.round(maxH*sc);
-  const _prevInfo=document.getElementById('previewInfo');if(_prevInfo)_prevInfo.textContent=`${anim.name} — ${anim.frameIds.length}f @ ${(1000/anim.timing).toFixed(1)}fps ${anim.loop?'🔁':'▶️'}`;
+  document.getElementById('previewInfo').textContent=`${anim.name} — ${anim.frameIds.length}f @ ${(1000/anim.timing).toFixed(1)}fps ${anim.loop?'🔁':'▶️'}`;
   let fi=0,lt=0;
   function tick(t){
     if(S.playingAnimId!==animId)return;if(!lt)lt=t;
     if(t-lt>=anim.timing){lt=t;fi++;if(fi>=anim.frameIds.length)fi=anim.loop?0:anim.frameIds.length-1;}
     const f=S.frames.find(fr=>fr.id===anim.frameIds[fi]);
-    if(!prevCtx)return;prevCtx.clearRect(0,0,prevCanvas.width,prevCanvas.height);prevCtx.imageSmoothingEnabled=false;
+    prevCtx.clearRect(0,0,prevCanvas.width,prevCanvas.height);prevCtx.imageSmoothingEnabled=false;
     if(S.onionSkin&&fi>0){const pf=S.frames.find(pr=>pr.id===anim.frameIds[fi-1]);if(pf){prevCtx.globalAlpha=.3;prevCtx.drawImage(S.img,pf.x,pf.y,pf.w,pf.h,(prevCanvas.width-pf.w*sc)/2,prevCanvas.height-pf.h*sc,pf.w*sc,pf.h*sc);prevCtx.globalAlpha=1;}}
     if(f)prevCtx.drawImage(S.img,f.x,f.y,f.w,f.h,(prevCanvas.width-f.w*sc)/2,prevCanvas.height-f.h*sc,f.w*sc,f.h*sc);
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);S.activeAnimId=animId;renderAnimList();renderFrameList();render();
 }
-function stopPreview(){S.playingAnimId=null;if(prevCtx)prevCtx.clearRect(0,0,prevCanvas.width,prevCanvas.height);}
+function stopPreview(){S.playingAnimId=null;prevCtx.clearRect(0,0,prevCanvas.width,prevCanvas.height);document.getElementById('previewInfo').textContent='Select an animation to preview';}
 
 // ==================== EXPORT ====================
 function getFrameName(f,i){return f.name||`frame_${i}`;}
