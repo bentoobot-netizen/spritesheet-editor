@@ -40,7 +40,7 @@ header h1{font-size:15px;margin-right:auto;color:var(--accent)}
 .sel-rect{position:absolute;border:2px solid var(--accent);background:rgba(233,69,96,.08);pointer-events:none;z-index:5;display:none}
 .sel-rect.active{display:block}
 .sel-rect.marquee{border-color:#0fbcf9;background:rgba(15,188,249,.05)}
-.guide-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:8}
+.guide-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:8;overflow:visible}
 .coords-bar{height:22px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:12px;font-size:11px;color:var(--dim);flex-shrink:0}
 .coords-bar span{min-width:60px}
 .coords-bar .sep{width:1px;height:14px;background:var(--border)}
@@ -338,7 +338,7 @@ const canvas=document.getElementById('sheetCanvas'), ctx=canvas.getContext('2d')
 const wrap=document.getElementById('canvasWrap'), selRectEl=document.getElementById('selRect');
 const prevCanvas=document.getElementById('previewCanvas'), prevCtx=prevCanvas.getContext('2d');
 const guideSvg=document.getElementById('guideSvg');
-const GUIDE_THRESHOLD=1;
+const GUIDE_THRESHOLD=1;const GUIDE_VIS_RANGE=4;
 const rulerHC=document.getElementById('rulerHCanvas'), rulerVC=document.getElementById('rulerVCanvas');
 // Ruler contexts obtained in renderRulers()
 
@@ -358,9 +358,10 @@ function snap(v){ return S.snap>0?Math.round(v/S.snap)*S.snap:Math.round(v); }
 function hideGuides(){guideSvg.innerHTML='';}
 function getSnapGuides(activeIds){const targets=[];S.frames.forEach(f=>{if(activeIds.has(f.id))return;targets.push({l:f.x,r:f.x+f.w,t:f.y,b:f.y+f.h,cx:f.x+f.w/2,cy:f.y+f.h/2});});return targets;}
 function findBestSnap(val,targets,getter){let best=null,bd=GUIDE_THRESHOLD;targets.forEach(t=>{const d=Math.abs(getter(t)-val);if(d<bd){bd=d;best=getter(t);}});return best!==null?{val:best,dist:bd}:null;}
+function findGuideLines(edges,targets){const g={l:null,r:null,t:null,b:null,cx:null,cy:null};function check(getter,setter){let best=null,bd=GUIDE_VIS_RANGE;targets.forEach(t=>{const d=Math.abs(getter(t)-getter(edges));if(d<bd){bd=d;best=getter(t);}});if(best!==null)setter(best);}check(t=>t.l,v=>{g.l=v});check(t=>t.r,v=>{g.r=v});check(t=>t.t,v=>{g.t=v});check(t=>t.b,v=>{g.b=v});check(t=>t.cx,v=>{g.cx=v});check(t=>t.cy,v=>{g.cy=v});return g;}
 function applySmartGuides(edges,targets){const guides={l:null,r:null,t:null,b:null,cx:null,cy:null};const sl=findBestSnap(edges.l,targets,t=>t.l);if(sl){guides.l=sl.val;edges.l=sl.val;}const sr=findBestSnap(edges.r,targets,t=>t.r);if(sr){guides.r=sr.val;edges.r=sr.val;}const st=findBestSnap(edges.t,targets,t=>t.t);if(st){guides.t=st.val;edges.t=st.val;}const sb=findBestSnap(edges.b,targets,t=>t.b);if(sb){guides.b=sb.val;edges.b=sb.val;}const scx=findBestSnap(edges.cx,targets,t=>t.cx);if(scx){guides.cx=scx.val;edges.cx=scx.val;edges.l=scx.val-edges.w/2;edges.r=scx.val+edges.w/2;}
 const scy=findBestSnap(edges.cy,targets,t=>t.cy);if(scy){guides.cy=scy.val;edges.cy=scy.val;edges.t=scy.val-edges.h/2;edges.b=scy.val+edges.h/2;}
-return{edges,guides};}
+return{edges,guides:findGuideLines(edges,targets)};}
 function showGuides(g,activeIds){guideSvg.innerHTML='';const allIds=new Set(activeIds);let vmin=1e9,vmax=-1e9,hmin=1e9,hmax=-1e9;S.frames.forEach(f=>{if(!allIds.has(f.id))return;vmin=Math.min(vmin,f.x);vmax=Math.max(vmax,f.x+f.w);hmin=Math.min(hmin,f.y);hmax=Math.max(hmax,f.y+f.h);});const lines=[];if(g.l!==null)lines.push(`<line x1="${vmin*S.zoom+S.panX}" y1="0" x2="${vmin*S.zoom+S.panX}" y2="${1e5}" stroke="#ff4757" stroke-width="1"/>`);if(g.r!==null)lines.push(`<line x1="${vmax*S.zoom+S.panX}" y1="0" x2="${vmax*S.zoom+S.panX}" y2="${1e5}" stroke="#ff4757" stroke-width="1"/>`);if(g.cx!==null)lines.push(`<line x1="${(vmin+vmax)/2*S.zoom+S.panX}" y1="0" x2="${(vmin+vmax)/2*S.zoom+S.panX}" y2="${1e5}" stroke="#ff4757" stroke-width="1" stroke-dasharray="4 3"/>`);if(g.t!==null)lines.push(`<line x1="0" y1="${hmin*S.zoom+S.panY}" x2="${1e5}" y2="${hmin*S.zoom+S.panY}" stroke="#ff4757" stroke-width="1"/>`);if(g.b!==null)lines.push(`<line x1="0" y1="${hmax*S.zoom+S.panY}" x2="${1e5}" y2="${hmax*S.zoom+S.panY}" stroke="#ff4757" stroke-width="1"/>`);if(g.cy!==null)lines.push(`<line x1="0" y1="${(hmin+hmax)/2*S.zoom+S.panY}" x2="${1e5}" y2="${(hmin+hmax)/2*S.zoom+S.panY}" stroke="#ff4757" stroke-width="1" stroke-dasharray="4 3"/>`);guideSvg.innerHTML=lines.join('');}
 
 // ==================== HANDLE + BBOX ====================
