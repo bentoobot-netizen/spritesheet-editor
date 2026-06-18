@@ -685,7 +685,7 @@ function autoDetect(){
   if(fs>=0)frameCols.push([fs,S.imgW]);
   frameCols.forEach(([cx1,cx2])=>{
     const fid=S.nextFrameId++;
-    S.frames.push({id,x:cx1,y:rowRanges[0][0],w:cx2-cx1,h});
+    S.frames.push({id:fid,x:cx1,y:rowRanges[0][0],w:cx2-cx1,h});
   });
   refresh();toast(`Detected ${S.frames.length} frames (${S.frames[0]?.w}×${S.frames[0]?.h})`);
 }
@@ -844,13 +844,13 @@ function renderAnimList(){
 document.getElementById('addAnimBtn').addEventListener('click',addAnimation);
 
 // ==================== PREVIEW + ONION SKIN ====================
-document.getElementById('btnOnion').addEventListener('click',function(){S.onionSkin=!S.onionSkin;this.classList.toggle('active',S.onionSkin);});
+const _btnOnion=document.getElementById('btnOnion');if(_btnOnion)_btnOnion.addEventListener('click',function(){S.onionSkin=!S.onionSkin;this.classList.toggle('active',S.onionSkin);});
 
 function playPreview(animId){
   stopPreview();const anim=S.animations.find(a=>a.id===animId);if(!anim||!S.img||!anim.frameIds.length)return;S.playingAnimId=animId;
   let maxW=0,maxH=0;anim.frameIds.forEach(fid=>{const f=S.frames.find(fr=>fr.id===fid);if(f){maxW=Math.max(maxW,f.w);maxH=Math.max(maxH,f.h);}});
   const sc=Math.min(2,120/Math.max(maxW,maxH));prevCanvas.width=Math.round(maxW*sc);prevCanvas.height=Math.round(maxH*sc);
-  document.getElementById('previewInfo').textContent=`${anim.name} — ${anim.frameIds.length}f @ ${(1000/anim.timing).toFixed(1)}fps ${anim.loop?'🔁':'▶️'}`;
+  const _prevInfo=document.getElementById('previewInfo');if(_prevInfo)_prevInfo.textContent=`${anim.name} — ${anim.frameIds.length}f @ ${(1000/anim.timing).toFixed(1)}fps ${anim.loop?'🔁':'▶️'}`;
   let fi=0,lt=0;
   function tick(t){
     if(S.playingAnimId!==animId)return;if(!lt)lt=t;
