@@ -630,12 +630,13 @@ window.addEventListener('mousemove',e=>{
     const dx=(cx-S.dragStartMX)/S.zoom,dy=(cy-S.dragStartMY)/S.zoom;
     const targets=getSnapGuides(S.dragFrameIds);
     let bx=1e9,by=1e9,br=-1e9,bb=-1e9;
-    S.dragFrameIds.forEach(id=>{const o=S.dragOrig.get(id);if(o){const dx2=(cx-S.dragStartMX)/S.zoom,dy2=(cy-S.dragStartMY)/S.zoom;bx=Math.min(bx,o.x+dx2);by=Math.min(by,o.y+dy2);br=Math.max(br,o.x+dx2+o.w);bb=Math.max(bb,o.y+dy2+o.h);}});
+    S.dragFrameIds.forEach(id=>{const o=S.dragOrig.get(id);if(o){bx=Math.min(bx,o.x+dx);by=Math.min(by,o.y+dy);br=Math.max(br,o.x+dx+o.w);bb=Math.max(bb,o.y+dy+o.h);}});
     const edges={l:snap(bx),r:snap(br),t:snap(by),b:snap(bb),cx:snap((bx+br)/2),cy:snap((by+bb)/2),w:br-bx,h:bb-by};
     const res=applySmartGuides(edges,targets);
     const sdx=edges.l-bx,sdy=edges.t-by;
-    S.dragFrameIds.forEach(id=>{const f=S.frames.find(fr=>fr.id===id);const o=S.dragOrig.get(id);if(f&&o){f.x=Math.round(snap(o.x+(cx-S.dragStartMX)/S.zoom)+sdx);f.y=Math.round(snap(o.y+(cy-S.dragStartMY)/S.zoom)+sdy);}});
-    if(sdx!==0||sdy!==0){S.dragStartMX+=sdx*S.zoom;S.dragStartMY+=sdy*S.zoom;S.dragFrameIds.forEach(id=>{const f=S.frames.find(fr=>fr.id===id);if(f)S.dragOrig.set(id,{x:f.x,y:f.y});});}
+    S.dragFrameIds.forEach(id=>{const f=S.frames.find(fr=>fr.id===id);const o=S.dragOrig.get(id);if(f&&o){f.x=Math.round(o.x+dx+sdx);f.y=Math.round(o.y+dy+sdy);}});
+    if(sdx!==0){S.dragStartMX+=sdx*S.zoom;S.dragFrameIds.forEach(id=>{const o=S.dragOrig.get(id);if(o){o.x+=sdx;}});}
+    if(sdy!==0){S.dragStartMY+=sdy*S.zoom;S.dragFrameIds.forEach(id=>{const o=S.dragOrig.get(id);if(o){o.y+=sdy;}});}
     showGuides(res.guides,S.dragFrameIds);renderFrameList();render();return;
   }
   if(S.mode==='marquee'){
