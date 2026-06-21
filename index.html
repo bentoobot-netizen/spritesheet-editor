@@ -739,7 +739,11 @@ function renderFrameList(){
     const idxSpan=document.createElement('span');idxSpan.className='idx';idxSpan.textContent='#'+i;
     const nameSpan=document.createElement('span');nameSpan.className='fname';nameSpan.textContent=f.name||'';
     if(!f.name)nameSpan.style.opacity='.3';
-    const posSpan=document.createElement('span');posSpan.className='pos';posSpan.textContent=f.x+','+f.y;
+    const posSpan=document.createElement('span');posSpan.className='pos';posSpan.style.display='contents';
+    const xInput=document.createElement('input');xInput.className='fi';xInput.type='number';xInput.value=f.x;xInput.dataset.fid=f.id;xInput.dataset.prop='x';xInput.title='X';
+    const commaSpan=document.createElement('span');commaSpan.textContent=',';
+    const yInput=document.createElement('input');yInput.className='fi';yInput.type='number';yInput.value=f.y;yInput.dataset.fid=f.id;yInput.dataset.prop='y';yInput.title='Y';
+    posSpan.appendChild(xInput);posSpan.appendChild(commaSpan);posSpan.appendChild(yInput);
     const wInput=document.createElement('input');wInput.className='fi';wInput.type='number';wInput.value=f.w;wInput.dataset.fid=f.id;wInput.dataset.prop='w';wInput.title='Width';
     const xSpan=document.createElement('span');xSpan.textContent='×';
     const hInput=document.createElement('input');hInput.className='fi';hInput.type='number';hInput.value=f.h;hInput.dataset.fid=f.id;hInput.dataset.prop='h';hInput.title='Height';
@@ -758,7 +762,11 @@ function renderFrameList(){
     editNameInput.addEventListener('change',ev=>{history.push();f.name=ev.target.value.trim();editNameInput.replaceWith(nameSpan);nameSpan.textContent=f.name||'';if(!f.name)nameSpan.style.opacity='.3';else nameSpan.style.opacity='1';renderAnimList();});
     editNameInput.addEventListener('blur',()=>{editNameInput.replaceWith(nameSpan);});
     // W/H inputs
-    const stop2=e=>e.stopPropagation();wInput.addEventListener('click',stop2);wInput.addEventListener('mousedown',stop2);
+    const stop2=e=>e.stopPropagation();xInput.addEventListener('click',stop2);xInput.addEventListener('mousedown',stop2);
+    xInput.addEventListener('change',ev=>{const val=parseInt(ev.target.value);if(isNaN(val))return;history.push();f.x=val;render();});
+    yInput.addEventListener('click',stop2);yInput.addEventListener('mousedown',stop2);
+    yInput.addEventListener('change',ev=>{const val=parseInt(ev.target.value);if(isNaN(val))return;history.push();f.y=val;render();});
+    wInput.addEventListener('click',stop2);wInput.addEventListener('mousedown',stop2);
     wInput.addEventListener('change',ev=>{const val=parseInt(ev.target.value);if(isNaN(val)||val<3)return;history.push();f.w=val;render();});
     hInput.addEventListener('click',stop2);hInput.addEventListener('mousedown',stop2);
     hInput.addEventListener('change',ev=>{const val=parseInt(ev.target.value);if(isNaN(val)||val<3)return;history.push();f.h=val;render();});
